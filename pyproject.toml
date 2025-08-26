@@ -48,5 +48,11 @@ Issues = "https://github.com/user/defuse/issues"
 
 [dependency-groups]
 dev = [
+    "docker>=7.1.0",
+    "pytest-cov>=6.2.1",
+    "pytest-mock>=3.14.1",
+    "pytest-timeout>=2.4.0",
+    "pytest-xdist>=3.8.0",
+    "responses>=0.25.8",
     "ty>=0.0.1a19",
 ]

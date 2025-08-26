@@ -183,6 +183,9 @@ def download(
         click.echo("\nThen run: defuse check-deps", err=True)
         sys.exit(1)
 
+    # Assert dangerzone_path is not None for type checker
+    assert dangerzone_path is not None
+
     try:
         # Initialize components
         downloader = SandboxedDownloader(config)
@@ -263,6 +266,9 @@ def sanitize(file_path, output_dir, output_filename, verbose):
         click.echo("Run: defuse check-deps", err=True)
         sys.exit(1)
 
+    # Assert dangerzone_path is not None for type checker
+    assert dangerzone_path is not None
+
     try:
         input_file = Path(file_path)
         sanitizer = DocumentSanitizer(config.sanitizer, dangerzone_path)
@@ -312,6 +318,9 @@ def batch(urls_file, output_dir, keep_originals, verbose):
     if not dangerzone_path:
         click.echo("❌ Dangerzone CLI not found!", err=True)
         sys.exit(1)
+
+    # Assert dangerzone_path is not None for type checker
+    assert dangerzone_path is not None
 
     # Read URLs
     urls = [
