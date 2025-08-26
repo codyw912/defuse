@@ -411,9 +411,11 @@ output_path = '{container_output}'
 max_size = {self.config.sandbox.max_file_size}
 
 try:
-    # Download with size limit
+    # Download with size limit and proper User-Agent
     timeout = {self.config.sandbox.download_timeout}
-    with urllib.request.urlopen(url, timeout=timeout) as response:
+    user_agent = '{self.config.sandbox.user_agent}'
+    req = urllib.request.Request(url, headers={{'User-Agent': user_agent}})
+    with urllib.request.urlopen(req, timeout=timeout) as response:
         if (hasattr(response, 'length') and response.length and
             response.length > max_size):
             raise Exception(f'File too large: {{response.length}} bytes')
@@ -493,9 +495,11 @@ output_path = '{container_output}'
 max_size = {self.config.sandbox.max_file_size}
 
 try:
-    # Download with size limit
+    # Download with size limit and proper User-Agent
     timeout = {self.config.sandbox.download_timeout}
-    with urllib.request.urlopen(url, timeout=timeout) as response:
+    user_agent = '{self.config.sandbox.user_agent}'
+    req = urllib.request.Request(url, headers={{'User-Agent': user_agent}})
+    with urllib.request.urlopen(req, timeout=timeout) as response:
         if (hasattr(response, 'length') and response.length and
             response.length > max_size):
             raise Exception(f'File too large: {{response.length}} bytes')
