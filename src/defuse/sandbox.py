@@ -72,7 +72,11 @@ class SandboxCapabilities:
                 [docker_path, "info"], capture_output=True, timeout=5
             )
             return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
+        except (
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+            subprocess.CalledProcessError,
+        ):
             return False
 
     def _check_podman_available(self) -> bool:
@@ -86,7 +90,11 @@ class SandboxCapabilities:
                 [podman_path, "info"], capture_output=True, timeout=5
             )
             return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
+        except (
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+            subprocess.CalledProcessError,
+        ):
             return False
 
     def _get_recommended_backend(self) -> SandboxBackend:
@@ -97,7 +105,9 @@ class SandboxCapabilities:
         elif self.available_backends.get(SandboxBackend.BUBBLEWRAP, False):
             return SandboxBackend.BUBBLEWRAP
         elif self.available_backends.get(SandboxBackend.PODMAN, False):
-            return SandboxBackend.PODMAN  # Podman preferred over Docker on all platforms
+            return (
+                SandboxBackend.PODMAN
+            )  # Podman preferred over Docker on all platforms
         elif self.available_backends.get(SandboxBackend.DOCKER, False):
             return SandboxBackend.DOCKER
         else:

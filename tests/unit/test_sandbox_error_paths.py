@@ -50,6 +50,7 @@ class TestSandboxCapabilitiesErrorPaths:
                     return "/usr/bin/podman"
                 else:
                     return None
+
             mock_which.side_effect = mock_which_side_effect
 
             with patch("defuse.sandbox.subprocess.run") as mock_run:
@@ -61,6 +62,7 @@ class TestSandboxCapabilitiesErrorPaths:
                         result = MagicMock()
                         result.returncode = 0
                         return result
+
                 mock_run.side_effect = mock_run_side_effect
 
                 capabilities = SandboxCapabilities()
@@ -80,6 +82,7 @@ class TestSandboxCapabilitiesErrorPaths:
                     return "/usr/bin/docker"
                 else:
                     return None
+
             mock_which.side_effect = mock_which_side_effect
 
             with patch("defuse.sandbox.subprocess.run") as mock_run:
@@ -91,6 +94,7 @@ class TestSandboxCapabilitiesErrorPaths:
                         result = MagicMock()
                         result.returncode = 0
                         return result
+
                 mock_run.side_effect = mock_run_side_effect
 
                 capabilities = SandboxCapabilities()
@@ -429,4 +433,3 @@ class TestContainerRuntimeChecking:
                         assert result is False
                         # Should clean up script even on timeout
                         mock_unlink.assert_called()
-
