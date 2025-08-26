@@ -251,14 +251,18 @@ class TestBatchCommandEdgeCases:
         with patch("defuse.cli.find_dangerzone_cli") as mock_find_dz:
             mock_find_dz.return_value = Path("/usr/bin/dangerzone-cli")
 
-            with runner.isolated_filesystem():
-                empty_file = Path("empty.txt")
-                empty_file.write_text("")
+            with patch(
+                "defuse.sandbox.SandboxCapabilities._check_docker_available",
+                return_value=True,
+            ):
+                with runner.isolated_filesystem():
+                    empty_file = Path("empty.txt")
+                    empty_file.write_text("")
 
-                result = runner.invoke(main, ["batch", str(empty_file)])
+                    result = runner.invoke(main, ["batch", str(empty_file)])
 
-                assert result.exit_code == 1
-                assert "No URLs found" in result.output
+                    assert result.exit_code == 1
+                    assert "No URLs found" in result.output
 
     def test_batch_only_comments_urls_file(self):
         """Test batch command with URLs file containing only comments."""
@@ -267,14 +271,18 @@ class TestBatchCommandEdgeCases:
         with patch("defuse.cli.find_dangerzone_cli") as mock_find_dz:
             mock_find_dz.return_value = Path("/usr/bin/dangerzone-cli")
 
-            with runner.isolated_filesystem():
-                comments_file = Path("comments.txt")
-                comments_file.write_text("# This is a comment\n# Another comment\n")
+            with patch(
+                "defuse.sandbox.SandboxCapabilities._check_docker_available",
+                return_value=True,
+            ):
+                with runner.isolated_filesystem():
+                    comments_file = Path("comments.txt")
+                    comments_file.write_text("# This is a comment\n# Another comment\n")
 
-                result = runner.invoke(main, ["batch", str(comments_file)])
+                    result = runner.invoke(main, ["batch", str(comments_file)])
 
-                assert result.exit_code == 1
-                assert "No URLs found" in result.output
+                    assert result.exit_code == 1
+                    assert "No URLs found" in result.output
 
     def test_batch_mixed_comments_and_urls(self):
         """Test batch command with mixed comments and URLs."""

@@ -74,27 +74,35 @@ class TestSandboxCapabilities:
 
     def test_capabilities_initialization(self):
         """Test that capabilities initialize properly."""
-        caps = SandboxCapabilities()
+        with patch(
+            "defuse.sandbox.SandboxCapabilities._check_docker_available",
+            return_value=True,
+        ):
+            caps = SandboxCapabilities()
 
-        assert hasattr(caps, "platform")
-        assert hasattr(caps, "available_backends")
-        assert hasattr(caps, "recommended_backend")
-        assert isinstance(caps.available_backends, dict)
+            assert hasattr(caps, "platform")
+            assert hasattr(caps, "available_backends")
+            assert hasattr(caps, "recommended_backend")
+            assert isinstance(caps.available_backends, dict)
 
     def test_platform_detection(self):
         """Test platform detection."""
-        with patch("platform.system") as mock_platform:
-            mock_platform.return_value = "Linux"
-            caps = SandboxCapabilities()
-            assert caps.platform == "linux"
+        with patch(
+            "defuse.sandbox.SandboxCapabilities._check_docker_available",
+            return_value=True,
+        ):
+            with patch("platform.system") as mock_platform:
+                mock_platform.return_value = "Linux"
+                caps = SandboxCapabilities()
+                assert caps.platform == "linux"
 
-            mock_platform.return_value = "Darwin"
-            caps = SandboxCapabilities()
-            assert caps.platform == "darwin"
+                mock_platform.return_value = "Darwin"
+                caps = SandboxCapabilities()
+                assert caps.platform == "darwin"
 
-            mock_platform.return_value = "Windows"
-            caps = SandboxCapabilities()
-            assert caps.platform == "windows"
+                mock_platform.return_value = "Windows"
+                caps = SandboxCapabilities()
+                assert caps.platform == "windows"
 
     @patch("shutil.which")
     @patch("subprocess.run")
@@ -198,8 +206,12 @@ class TestSandboxCapabilities:
 
     def test_auto_backend_always_available(self):
         """Test that AUTO backend is always available."""
-        caps = SandboxCapabilities()
-        assert caps.available_backends[SandboxBackend.AUTO] is True
+        with patch(
+            "defuse.sandbox.SandboxCapabilities._check_docker_available",
+            return_value=True,
+        ):
+            caps = SandboxCapabilities()
+            assert caps.available_backends[SandboxBackend.AUTO] is True
 
     @patch("shutil.which")
     @patch("subprocess.run")
