@@ -70,3 +70,11 @@ Thumbs.db
 # Internal docs 
 ROADMAP.md
 TESTING_STRATEGY.md
+
+# Output directory (test artifacts)
+output/
+
+# Nix development environment (user-specific)
+devenv.nix
+flake.lock
+flake.nix

@@ -26,7 +26,7 @@ uv tool install defuse
 ### Install from source
 
 ```bash
-git clone https://github.com/user/defuse
+git clone https://github.com/codyw912/defuse
 cd defuse
 uv tool install .
 ```
@@ -189,4 +189,3 @@ MIT License - see LICENSE file for details.
 
 - Report issues: <https://github.com/codyw912/defuse/issues>
 - Dangerzone documentation: <https://dangerzone.rocks>
-
