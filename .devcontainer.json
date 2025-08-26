@@ -1,0 +1,38 @@
+{
+  "containerEnv": {
+    "PYTHONPATH": "./src",
+    "UV_CACHE_DIR": "/tmp/uv-cache",
+    "UV_COMPILE_BYTECODE": "1",
+    "UV_LINK_MODE": "copy"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "mkhl.direnv"
+      ]
+    }
+  },
+  "forwardPorts": [
+    8000,
+    8080
+  ],
+  "image": "ghcr.io/astral-sh/uv:python3.13-bookworm-slim",
+  "mounts": [
+    "source=uv-cache,target=/tmp/uv-cache,type=volume"
+  ],
+  "name": "Python UV Development",
+  "onCreateCommand": "# Install additional system dependencies\napt-get update && apt-get install -y git build-essential && rm -rf /var/lib/apt/lists/*\n\n# Create non-root user\ngroupadd --gid 1000 devuser\nuseradd --uid 1000 --gid devuser --shell /bin/bash --create-home devuser\n\n# Setup UV cache\nmkdir -p /tmp/uv-cache && chown devuser:devuser /tmp/uv-cache\n",
+  "overrideCommand": false,
+  "postCreateCommand": "uv sync",
+  "remoteUser": "devuser",
+  "runArgs": [
+    "--cap-drop=ALL",
+    "--cap-add=CHOWN",
+    "--cap-add=DAC_OVERRIDE",
+    "--cap-add=FOWNER",
+    "--cap-add=SETGID",
+    "--cap-add=SETUID",
+    "--security-opt=no-new-privileges:true"
+  ],
+  "updateContentCommand": "devenv test"
+}
