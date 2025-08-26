@@ -309,7 +309,7 @@ if __name__ == "__main__":
                 # File size limit
                 "--rlimit-nofile=64",  # File descriptor limit
                 "--rlimit-nproc=10",  # Process limit
-                "--timeout=120",  # Timeout after 2 minutes
+                "--timeout=00:02:00",  # Timeout after 2 minutes
                 "python3",
                 str(script_path),
             ]
@@ -346,7 +346,7 @@ if __name__ == "__main__":
                 "--new-session",
                 "--die-with-parent",
                 "--unshare-pid",
-                "--unshare-net",  # No network access
+                # Network access allowed for downloads
                 "--tmpfs",
                 "/tmp",
                 "--proc",
@@ -378,7 +378,20 @@ if __name__ == "__main__":
             if result.returncode == 0 and output_path.exists():
                 return True
             else:
-                print(f"Bubblewrap download failed: {result.stderr}")
+                # Check for specific CI/permission issues
+                error_msg = result.stderr.strip()
+                if "Operation not permitted" in error_msg and "namespace" in error_msg:
+                    print(
+                        "Bubblewrap download failed: "
+                        "CI environment doesn't support user namespaces"
+                    )
+                elif "Operation not permitted" in error_msg:
+                    print(
+                        "Bubblewrap download failed: "
+                        "Insufficient permissions for sandboxing"
+                    )
+                else:
+                    print(f"Bubblewrap download failed: {error_msg}")
                 return False
 
         except subprocess.TimeoutExpired:
