@@ -153,6 +153,175 @@ def sample_formats_data() -> Dict[str, bytes]:
     }
 
 
+# Platform-specific fixtures for cross-platform testing
+
+
+@pytest.fixture
+def platform_info():
+    """Provide current platform information for tests."""
+    import platform
+
+    return {
+        "system": platform.system(),
+        "is_linux": platform.system() == "Linux",
+        "is_windows": platform.system() == "Windows",
+        "is_macos": platform.system() == "Darwin",
+        "architecture": platform.machine(),
+        "version": platform.release(),
+    }
+
+
+@pytest.fixture
+def skip_if_not_linux():
+    """Skip test if not running on Linux."""
+    import platform
+
+    if platform.system() != "Linux":
+        pytest.skip("Test requires Linux")
+
+
+@pytest.fixture
+def skip_if_not_windows():
+    """Skip test if not running on Windows."""
+    import platform
+
+    if platform.system() != "Windows":
+        pytest.skip("Test requires Windows")
+
+
+@pytest.fixture
+def skip_if_not_macos():
+    """Skip test if not running on macOS."""
+    import platform
+
+    if platform.system() != "Darwin":
+        pytest.skip("Test requires macOS")
+
+
+@pytest.fixture
+def platform_sandbox_capabilities():
+    """Platform-specific mock sandbox capabilities."""
+    import platform
+    from defuse.sandbox import SandboxBackend, IsolationLevel
+
+    system = platform.system()
+
+    if system == "Linux":
+        available_backends = {
+            SandboxBackend.AUTO: True,
+            SandboxBackend.FIREJAIL: True,
+            SandboxBackend.BUBBLEWRAP: True,
+            SandboxBackend.PODMAN: True,
+            SandboxBackend.DOCKER: True,
+        }
+        recommended = SandboxBackend.FIREJAIL
+        platform_name = "linux"
+    elif system == "Windows":
+        available_backends = {
+            SandboxBackend.AUTO: True,
+            SandboxBackend.FIREJAIL: False,
+            SandboxBackend.BUBBLEWRAP: False,
+            SandboxBackend.PODMAN: False,
+            SandboxBackend.DOCKER: True,
+        }
+        recommended = SandboxBackend.DOCKER
+        platform_name = "windows"
+    elif system == "Darwin":
+        available_backends = {
+            SandboxBackend.AUTO: True,
+            SandboxBackend.FIREJAIL: False,
+            SandboxBackend.BUBBLEWRAP: False,
+            SandboxBackend.PODMAN: True,
+            SandboxBackend.DOCKER: True,
+        }
+        recommended = SandboxBackend.PODMAN
+        platform_name = "darwin"
+    else:
+        # Unknown platform - minimal capabilities
+        available_backends = {
+            SandboxBackend.AUTO: True,
+            SandboxBackend.FIREJAIL: False,
+            SandboxBackend.BUBBLEWRAP: False,
+            SandboxBackend.PODMAN: False,
+            SandboxBackend.DOCKER: False,
+        }
+        recommended = SandboxBackend.AUTO
+        platform_name = system.lower()
+
+    with patch("defuse.sandbox.SandboxCapabilities") as mock_caps_class:
+        mock_caps = MagicMock()
+        mock_caps.platform = platform_name
+        mock_caps.available_backends = available_backends
+        mock_caps.recommended_backend = recommended
+        mock_caps.get_max_isolation_level.return_value = IsolationLevel.STRICT
+
+        mock_caps_class.return_value = mock_caps
+        yield mock_caps
+
+
+@pytest.fixture
+def docker_available():
+    """Check if Docker is available for testing."""
+    import shutil
+    import subprocess
+
+    # Check if docker command exists
+    if not shutil.which("docker"):
+        pytest.skip("Docker not available")
+        return False
+
+    # Check if Docker daemon is running
+    try:
+        result = subprocess.run(["docker", "info"], capture_output=True, timeout=5)
+        if result.returncode != 0:
+            pytest.skip("Docker daemon not running")
+            return False
+        return True
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pytest.skip("Docker not available or not running")
+        return False
+
+
+@pytest.fixture
+def sandbox_tool_availability():
+    """Check availability of sandbox tools on current platform."""
+    import shutil
+    import platform
+
+    availability = {
+        "docker": shutil.which("docker") is not None,
+        "podman": shutil.which("podman") is not None,
+        "firejail": shutil.which("firejail") is not None,
+        "bubblewrap": shutil.which("bwrap") is not None,
+    }
+
+    # Platform-specific adjustments
+    system = platform.system()
+    if system != "Linux":
+        availability["firejail"] = False
+        availability["bubblewrap"] = False
+
+    return availability
+
+
+@pytest.fixture
+def platform_temp_dir():
+    """Platform-appropriate temporary directory."""
+    import tempfile
+    import platform
+
+    if platform.system() == "Windows":
+        # Use Windows temp directory
+        temp_dir = Path(tempfile.gettempdir())
+    else:
+        # Use /tmp on Unix-like systems
+        temp_dir = Path("/tmp")
+
+    # Ensure it exists
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    return temp_dir
+
+
 @pytest.fixture
 def mock_http_responses():
     """Mock HTTP responses for download tests."""
