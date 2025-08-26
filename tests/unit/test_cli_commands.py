@@ -251,10 +251,16 @@ class TestBatchCommandEdgeCases:
         with patch("defuse.cli.find_dangerzone_cli") as mock_find_dz:
             mock_find_dz.return_value = Path("/usr/bin/dangerzone-cli")
 
-            with patch(
-                "defuse.sandbox.SandboxCapabilities._check_docker_available",
-                return_value=True,
-            ):
+            with patch("defuse.sandbox.SandboxCapabilities") as mock_capabilities:
+                mock_caps_instance = mock_capabilities.return_value
+                mock_caps_instance.available_backends = {
+                    "docker": True,
+                    "podman": False,
+                    "firejail": False,
+                    "bubblewrap": False,
+                    "auto": True,
+                }
+                mock_caps_instance.recommended_backend = "docker"
                 with runner.isolated_filesystem():
                     empty_file = Path("empty.txt")
                     empty_file.write_text("")
@@ -271,10 +277,16 @@ class TestBatchCommandEdgeCases:
         with patch("defuse.cli.find_dangerzone_cli") as mock_find_dz:
             mock_find_dz.return_value = Path("/usr/bin/dangerzone-cli")
 
-            with patch(
-                "defuse.sandbox.SandboxCapabilities._check_docker_available",
-                return_value=True,
-            ):
+            with patch("defuse.sandbox.SandboxCapabilities") as mock_capabilities:
+                mock_caps_instance = mock_capabilities.return_value
+                mock_caps_instance.available_backends = {
+                    "docker": True,
+                    "podman": False,
+                    "firejail": False,
+                    "bubblewrap": False,
+                    "auto": True,
+                }
+                mock_caps_instance.recommended_backend = "docker"
                 with runner.isolated_filesystem():
                     comments_file = Path("comments.txt")
                     comments_file.write_text("# This is a comment\n# Another comment\n")
