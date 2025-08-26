@@ -217,19 +217,30 @@ def mock_dangerzone_cli(temp_dir: Path):
     mock_script = """#!/bin/bash
 # Mock dangerzone-cli for testing
 
-# Parse arguments to understand what's being requested
+# Parse arguments to match real dangerzone CLI interface
 INPUT_FILE=""
-OUTPUT_FILE=""
+OUTPUT_FILENAME=""
 
+# First argument is the input file (positional)
+if [[ $# -ge 1 && ! "$1" =~ ^-- ]]; then
+    INPUT_FILE="$1"
+    shift
+fi
+
+# Parse remaining arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --input)
-            INPUT_FILE="$2"
+        --output-filename)
+            OUTPUT_FILENAME="$2"
             shift 2
             ;;
-        --output)
-            OUTPUT_FILE="$2"
+        --ocr-lang)
+            # OCR language option - just consume and ignore for mock
             shift 2
+            ;;
+        --archive)
+            # Archive option - just consume and ignore for mock
+            shift
             ;;
         *)
             shift
@@ -238,12 +249,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Simulate successful conversion
-if [[ -n "$INPUT_FILE" && -n "$OUTPUT_FILE" ]]; then
-    echo "Mock Dangerzone: Converting $INPUT_FILE to $OUTPUT_FILE"
-    # Create a mock sanitized PDF
-    echo "%PDF-1.7" > "$OUTPUT_FILE"
-    echo "Mock sanitized document from $(basename "$INPUT_FILE")" >> "$OUTPUT_FILE"
-    echo "%%EOF" >> "$OUTPUT_FILE"
+if [[ -n "$INPUT_FILE" && -n "$OUTPUT_FILENAME" ]]; then
+    echo "Mock Dangerzone: Converting $INPUT_FILE to $OUTPUT_FILENAME"
+    # Create a mock sanitized PDF in current working directory (binary format)
+    printf "%%PDF-1.7\\n1 0 obj\\n<< /Type /Catalog /Pages 2 0 R >>\\nendobj\\nMock sanitized document from %s\\n%%%%EOF" "$(basename "$INPUT_FILE")" > "$OUTPUT_FILENAME"
     exit 0
 else
     echo "Mock Dangerzone: Invalid arguments" >&2

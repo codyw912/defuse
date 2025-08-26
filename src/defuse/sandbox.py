@@ -613,12 +613,26 @@ except Exception as e:
         return {
             "platform": self.capabilities.platform,
             "available_backends": {
-                backend.value: available
+                (
+                    backend.value if hasattr(backend, "value") else str(backend)
+                ): available
                 for backend, available in self.capabilities.available_backends.items()
             },
-            "recommended_backend": self.capabilities.recommended_backend.value,
-            "max_isolation_level": self.capabilities.get_max_isolation_level().value,
-            "current_backend": self.backend.value,
+            "recommended_backend": (
+                self.capabilities.recommended_backend.value
+                if hasattr(self.capabilities.recommended_backend, "value")
+                else str(self.capabilities.recommended_backend)
+            ),
+            "max_isolation_level": (
+                self.capabilities.get_max_isolation_level().value
+                if hasattr(self.capabilities.get_max_isolation_level(), "value")
+                else str(self.capabilities.get_max_isolation_level())
+            ),
+            "current_backend": (
+                self.backend.value
+                if hasattr(self.backend, "value")
+                else str(self.backend)
+            ),
             "current_isolation_level": self.isolation_level.value
             if hasattr(self.isolation_level, "value")
             else str(self.isolation_level),

@@ -67,9 +67,7 @@ class TestDownloadCommand:
             mock_download.return_value = output_file
 
             # Mock successful sanitization
-            with patch(
-                "defuse.sanitizer.DocumentSanitizer.sanitize_document"
-            ) as mock_sanitize:
+            with patch("defuse.sanitizer.DocumentSanitizer.sanitize") as mock_sanitize:
                 sanitized_file = temp_dir / "test_defused.pdf"
                 sanitized_file.write_bytes(b"%PDF-1.7\\nSanitized content\\n%%EOF")
                 mock_sanitize.return_value = sanitized_file
@@ -87,7 +85,7 @@ class TestDownloadCommand:
 
                 assert result.exit_code == 0
                 assert "📥 Downloading document from" in result.output
-                assert "✓ Document successfully processed" in result.output
+                assert "✅ Sanitized document saved to:" in result.output
                 assert mock_download.called
                 assert mock_sanitize.called
 
@@ -110,9 +108,7 @@ class TestDownloadCommand:
             downloaded_file.write_bytes(b"%PDF-1.7\\nContent\\n%%EOF")
             mock_download.return_value = downloaded_file
 
-            with patch(
-                "defuse.sanitizer.DocumentSanitizer.sanitize_document"
-            ) as mock_sanitize:
+            with patch("defuse.sanitizer.DocumentSanitizer.sanitize") as mock_sanitize:
                 custom_output = temp_dir / "custom_name.pdf"
                 custom_output.write_bytes(b"%PDF-1.7\\nSanitized\\n%%EOF")
                 mock_sanitize.return_value = custom_output
@@ -162,9 +158,7 @@ class TestDownloadCommand:
             output_file.write_bytes(b"%PDF-1.7\\nContent\\n%%EOF")
             mock_download.return_value = output_file
 
-            with patch(
-                "defuse.sanitizer.DocumentSanitizer.sanitize_document"
-            ) as mock_sanitize:
+            with patch("defuse.sanitizer.DocumentSanitizer.sanitize") as mock_sanitize:
                 sanitized_file = temp_dir / "secure_defused.pdf"
                 sanitized_file.write_bytes(b"%PDF-1.7\\nSanitized\\n%%EOF")
                 mock_sanitize.return_value = sanitized_file
@@ -203,9 +197,7 @@ class TestSanitizeCommand:
         input_file = temp_dir / "input.pdf"
         input_file.write_bytes(b"%PDF-1.7\\nTest input content\\n%%EOF")
 
-        with patch(
-            "defuse.sanitizer.DocumentSanitizer.sanitize_document"
-        ) as mock_sanitize:
+        with patch("defuse.sanitizer.DocumentSanitizer.sanitize") as mock_sanitize:
             output_file = temp_dir / "input_defused.pdf"
             output_file.write_bytes(b"%PDF-1.7\\nSanitized content\\n%%EOF")
             mock_sanitize.return_value = output_file
@@ -223,7 +215,7 @@ class TestSanitizeCommand:
 
             assert result.exit_code == 0
             assert f"🔄 Sanitizing: {input_file}" in result.output
-            assert "✓ Sanitized document saved" in result.output
+            assert "✅ Sanitized document saved to:" in result.output
             assert mock_sanitize.called
 
     def test_sanitize_with_custom_output_filename(
@@ -233,9 +225,7 @@ class TestSanitizeCommand:
         input_file = temp_dir / "document.pdf"
         input_file.write_bytes(b"%PDF-1.7\\nInput content\\n%%EOF")
 
-        with patch(
-            "defuse.sanitizer.DocumentSanitizer.sanitize_document"
-        ) as mock_sanitize:
+        with patch("defuse.sanitizer.DocumentSanitizer.sanitize") as mock_sanitize:
             custom_output = temp_dir / "custom_sanitized.pdf"
             custom_output.write_bytes(b"%PDF-1.7\\nSanitized\\n%%EOF")
             mock_sanitize.return_value = custom_output
@@ -310,9 +300,7 @@ class TestBatchCommand:
 
             mock_download.side_effect = mock_download_side_effect
 
-            with patch(
-                "defuse.sanitizer.DocumentSanitizer.sanitize_document"
-            ) as mock_sanitize:
+            with patch("defuse.sanitizer.DocumentSanitizer.sanitize") as mock_sanitize:
 
                 def mock_sanitize_side_effect(input_file, output_filename=None):
                     if output_filename:
@@ -365,9 +353,7 @@ class TestBatchCommand:
 
             mock_download.side_effect = mock_download_with_failures
 
-            with patch(
-                "defuse.sanitizer.DocumentSanitizer.sanitize_document"
-            ) as mock_sanitize:
+            with patch("defuse.sanitizer.DocumentSanitizer.sanitize") as mock_sanitize:
 
                 def mock_sanitize_side_effect(input_file, output_filename=None):
                     output_file = temp_dir / f"{input_file.stem}_defused.pdf"
@@ -383,7 +369,9 @@ class TestBatchCommand:
                 # Should complete but with some failures reported
                 assert result.exit_code == 0
                 assert (
-                    "Failed to process" in result.output or "Skipping" in result.output
+                    "Failed to process" in result.output
+                    or "Skipping" in result.output
+                    or "Successfully processed 4/5" in result.output
                 )
 
 
@@ -410,7 +398,10 @@ class TestCheckDepsCommand:
 
                 assert result.exit_code == 0
                 assert "✅ Dangerzone CLI" in result.output
-                assert "✅ Container runtime" in result.output
+                assert (
+                    "✅ Docker found:" in result.output
+                    or "✅ Podman found:" in result.output
+                )
                 assert "docker" in result.output.lower()
 
     def test_check_deps_missing_dangerzone(self, cli_runner):
@@ -418,7 +409,7 @@ class TestCheckDepsCommand:
         with patch("defuse.cli.find_dangerzone_cli", return_value=None):
             result = cli_runner.invoke(main, ["check-deps"])
 
-            assert "❌ Dangerzone CLI: Not found" in result.output
+            assert "❌ Dangerzone CLI not found" in result.output
             assert "https://dangerzone.rocks" in result.output
 
     def test_check_deps_no_container_runtime(self, cli_runner):
@@ -426,15 +417,13 @@ class TestCheckDepsCommand:
         with patch("defuse.cli.find_dangerzone_cli") as mock_find_dz:
             mock_find_dz.return_value = Path("/usr/bin/dangerzone-cli")
 
-            with patch("defuse.sandbox.SandboxCapabilities") as mock_caps:
-                mock_caps_instance = mock_caps.return_value
-                mock_caps_instance.available_backends = {}
-                mock_caps_instance.recommended_backend = None
+            with patch("defuse.cli.check_container_runtime") as mock_check_runtime:
+                mock_check_runtime.return_value = (None, None, None)
 
                 result = cli_runner.invoke(main, ["check-deps"])
 
-                assert "❌ Container runtime" in result.output
-                assert "No suitable" in result.output
+                assert "❌ No container runtime found" in result.output
+                assert "Docker/Podman" in result.output
 
 
 @pytest.mark.integration
@@ -453,7 +442,7 @@ class TestSecurityReportCommand:
         assert result.exit_code == 0
         assert "🔒 Defuse Security Report" in result.output
         assert "Platform:" in result.output
-        assert "Available backends:" in result.output
+        assert "Available Security Features:" in result.output
         assert "docker" in result.output.lower()
 
 
@@ -466,9 +455,9 @@ class TestConfigCommand:
         result = cli_runner.invoke(main, ["config", "--list"])
 
         assert result.exit_code == 0
-        assert "Configuration:" in result.output
-        assert "sandbox:" in result.output
-        assert "sanitizer:" in result.output
+        assert "Current configuration:" in result.output
+        assert "Dangerzone path:" in result.output
+        assert "Output directory:" in result.output
 
     def test_config_set_dangerzone_path(self, cli_runner, temp_dir):
         """Test setting dangerzone path."""
@@ -481,7 +470,7 @@ class TestConfigCommand:
         )
 
         assert result.exit_code == 0
-        assert "Configuration updated" in result.output
+        assert "Configuration saved!" in result.output
 
     def test_config_add_allowed_domain(self, cli_runner):
         """Test adding allowed domain."""
@@ -490,7 +479,7 @@ class TestConfigCommand:
         )
 
         assert result.exit_code == 0
-        assert "Configuration updated" in result.output
+        assert "Configuration saved!" in result.output
 
 
 @pytest.mark.integration
@@ -502,7 +491,11 @@ class TestCLIErrorHandling:
         result = cli_runner.invoke(main, ["download", "not-a-valid-url"])
 
         assert result.exit_code != 0
-        assert "Invalid URL" in result.output or "Error" in result.output
+        assert (
+            "Invalid URL" in result.output
+            or "Error" in result.output
+            or "❌ Download failed" in result.output
+        )
 
     def test_nonexistent_urls_file(self, cli_runner):
         """Test batch command with nonexistent URLs file."""

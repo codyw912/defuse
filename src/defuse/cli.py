@@ -186,6 +186,18 @@ def download(
     # Assert dangerzone_path is not None for type checker
     assert dangerzone_path is not None
 
+    # Check container runtime availability upfront
+    runtime_name, runtime_path, version = check_container_runtime()
+    if not runtime_name:
+        click.echo("❌ Container runtime not available!", err=True)
+        click.echo(
+            "Defuse requires Docker or Podman to safely download documents.", err=True
+        )
+        click.echo(
+            "Please install a container runtime and run: defuse check-deps", err=True
+        )
+        sys.exit(1)
+
     try:
         # Initialize components
         downloader = SandboxedDownloader(config)
@@ -321,6 +333,18 @@ def batch(urls_file, output_dir, keep_originals, verbose):
 
     # Assert dangerzone_path is not None for type checker
     assert dangerzone_path is not None
+
+    # Check container runtime availability upfront
+    runtime_name, runtime_path, version = check_container_runtime()
+    if not runtime_name:
+        click.echo("❌ Container runtime not available!", err=True)
+        click.echo(
+            "Defuse requires Docker or Podman to safely download documents.", err=True
+        )
+        click.echo(
+            "Please install a container runtime and run: defuse check-deps", err=True
+        )
+        sys.exit(1)
 
     # Read URLs
     urls = [

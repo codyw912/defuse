@@ -19,6 +19,9 @@ class DocumentSanitizer:
         self.config = config
         self.dangerzone_cli = dangerzone_cli_path
 
+        if self.dangerzone_cli is None:
+            raise DocumentSanitizeError("Dangerzone CLI path not provided")
+
         if not self.dangerzone_cli.exists():
             raise DocumentSanitizeError(
                 f"Dangerzone CLI not found at: {dangerzone_cli_path}"
@@ -26,7 +29,7 @@ class DocumentSanitizer:
 
     def is_available(self) -> bool:
         """Check if Dangerzone CLI is available"""
-        return self.dangerzone_cli.exists()
+        return self.dangerzone_cli is not None and self.dangerzone_cli.exists()
 
     def sanitize(self, input_path: Path, output_filename: Optional[str] = None) -> Path:
         """
