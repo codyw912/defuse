@@ -33,9 +33,10 @@ uv tool install .
 
 ## Prerequisites
 
-Defuse requires [Dangerzone](https://dangerzone.rocks) to be installed:
+Defuse requires [Dangerzone](https://dangerzone.rocks) to be installed. Defuse will automatically detect Dangerzone in common installation locations on all platforms (PATH, app bundles, package managers, etc.):
 
 ### macOS
+
 ```bash
 # Option 1: Download from website
 # https://dangerzone.rocks
@@ -45,6 +46,7 @@ brew install --cask dangerzone
 ```
 
 ### Linux
+
 ```bash
 # Use your package manager or download from:
 # https://dangerzone.rocks
@@ -53,11 +55,13 @@ brew install --cask dangerzone
 ## Usage
 
 ### Check Dependencies
+
 ```bash
 defuse check-deps
 ```
 
 ### Download and Sanitize a Document
+
 ```bash
 defuse download https://example.com/document.pdf
 # Also works with other formats:
@@ -66,6 +70,7 @@ defuse download https://example.com/document.docx
 ```
 
 ### Sanitize a Local Document
+
 ```bash
 defuse sanitize /path/to/document.pdf
 # Also works with other formats:
@@ -74,6 +79,7 @@ defuse sanitize /path/to/document.docx
 ```
 
 ### Batch Process Multiple URLs
+
 ```bash
 # Create a file with URLs (one per line) - mix of formats supported
 echo "https://example.com/doc1.pdf" > urls.txt
@@ -84,6 +90,7 @@ defuse batch urls.txt
 ```
 
 ### Configuration
+
 ```bash
 # List current settings
 defuse config --list
@@ -94,24 +101,27 @@ defuse config --output-dir ~/SafeDocuments
 # Add allowed domain
 defuse config --add-domain example.com
 
-# Set custom Dangerzone path
+# Set custom Dangerzone path (only needed if auto-detection fails)
 defuse config --dangerzone-path /custom/path/to/dangerzone-cli
 ```
 
 ## Command Options
 
 ### `download`
+
 - `--output-dir, -o`: Output directory for sanitized document
 - `--output-filename, -f`: Custom filename for output
 - `--keep-original`: Keep the original downloaded file
 - `--verbose, -v`: Verbose output
 
 ### `sanitize`
+
 - `--output-dir, -o`: Output directory for sanitized document
 - `--output-filename, -f`: Custom filename for output
 - `--verbose, -v`: Verbose output
 
 ### `batch`
+
 - `--output-dir, -o`: Output directory for sanitized documents
 - `--keep-originals`: Keep original downloaded files
 - `--verbose, -v`: Verbose output
@@ -129,6 +139,7 @@ defuse config --dangerzone-path /custom/path/to/dangerzone-cli
 ## Configuration
 
 Defuse stores user configuration in:
+
 - macOS: `~/Library/Application Support/defuse/config.yaml`
 - Linux: `~/.config/defuse/config.yaml`
 - Windows: `%APPDATA%/defuse/config.yaml`
@@ -136,6 +147,7 @@ Defuse stores user configuration in:
 ## How Dangerzone Works
 
 Dangerzone converts potentially dangerous documents into safe PDFs by:
+
 1. Converting the document into pixel data inside a sandbox (supports PDFs, Word docs, PowerPoint, images, etc.)
 2. Using OCR to preserve any text content
 3. Reconstructing a clean PDF outside the sandbox
@@ -145,7 +157,7 @@ Dangerzone converts potentially dangerous documents into safe PDFs by:
 
 ```bash
 # Clone the repository
-git clone https://github.com/user/defuse
+git clone https://github.com/codyw912/defuse
 cd defuse
 
 # Install development dependencies
@@ -175,5 +187,6 @@ MIT License - see LICENSE file for details.
 
 ## Support
 
-- Report issues: https://github.com/user/defuse/issues
-- Dangerzone documentation: https://dangerzone.rocks
+- Report issues: <https://github.com/codyw912/defuse/issues>
+- Dangerzone documentation: <https://dangerzone.rocks>
+

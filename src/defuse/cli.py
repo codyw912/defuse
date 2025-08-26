@@ -81,18 +81,11 @@ def save_user_config(config: Config):
 
 def find_dangerzone_cli() -> Optional[Path]:
     """Find Dangerzone CLI executable."""
-
-    # Check if already in PATH
+    
+    # Check if already in PATH first
     cli_path = shutil.which("dangerzone-cli")
     if cli_path:
         return Path(cli_path)
-
-    # Platform-specific search
-    if platform.system() == "Darwin":
-        # macOS: Check inside app bundle
-        app_cli = Path("/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli")
-        if app_cli.exists():
-            return app_cli
 
     # Check environment variable
     env_path = os.environ.get("DANGERZONE_CLI_PATH")
@@ -100,6 +93,56 @@ def find_dangerzone_cli() -> Optional[Path]:
         path = Path(env_path)
         if path.exists():
             return path
+
+    # Platform-specific search in common installation locations
+    system = platform.system()
+    
+    if system == "Darwin":
+        # macOS: Check inside app bundle (GUI app installation)
+        macos_paths = [
+            Path("/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli"),
+            Path("~/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli").expanduser(),
+            # Homebrew installation
+            Path("/opt/homebrew/bin/dangerzone-cli"),
+            Path("/usr/local/bin/dangerzone-cli"),
+        ]
+        for path in macos_paths:
+            if path.exists():
+                return path
+                
+    elif system == "Linux":
+        # Linux: Check common package manager installation locations
+        linux_paths = [
+            # Standard locations for package manager installations
+            Path("/usr/bin/dangerzone-cli"),
+            Path("/usr/local/bin/dangerzone-cli"),
+            Path("/bin/dangerzone-cli"),
+            # Flatpak installation
+            Path("/var/lib/flatpak/exports/bin/dangerzone-cli"),
+            Path("~/.local/share/flatpak/exports/bin/dangerzone-cli").expanduser(),
+            # Snap installation
+            Path("/snap/bin/dangerzone-cli"),
+            # AppImage or manual installation in user directories
+            Path("~/.local/bin/dangerzone-cli").expanduser(),
+            Path("~/bin/dangerzone-cli").expanduser(),
+        ]
+        for path in linux_paths:
+            if path.exists():
+                return path
+                
+    elif system == "Windows":
+        # Windows: Check common installation locations
+        windows_paths = [
+            # Program Files installations
+            Path("C:/Program Files/Dangerzone/dangerzone-cli.exe"),
+            Path("C:/Program Files (x86)/Dangerzone/dangerzone-cli.exe"),
+            # User-specific installations
+            Path.home() / "AppData/Local/Dangerzone/dangerzone-cli.exe",
+            Path.home() / "AppData/Roaming/Dangerzone/dangerzone-cli.exe",
+        ]
+        for path in windows_paths:
+            if path.exists():
+                return path
 
     return None
 
