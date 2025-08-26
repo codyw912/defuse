@@ -2,7 +2,6 @@ import io
 import tempfile
 import urllib.parse
 import resource
-import signal
 from pathlib import Path
 from typing import Optional, Union, BinaryIO
 import requests
@@ -34,8 +33,14 @@ class SecureDocumentDownloader:
         self._setup_resource_limits()
 
     def _setup_resource_limits(self):
-        """Set up resource limits for the download process"""
+        """Set up resource limits for the download process (Unix only)"""
         try:
+            import platform
+
+            if platform.system() == "Windows":
+                # Resource limits not available on Windows
+                return
+
             # Limit virtual memory to prevent memory exhaustion attacks
             max_memory = getattr(self.config, "max_memory_mb", 512) * 1024 * 1024
             resource.setrlimit(resource.RLIMIT_AS, (max_memory, max_memory))
@@ -47,7 +52,7 @@ class SecureDocumentDownloader:
             # Limit number of file descriptors
             resource.setrlimit(resource.RLIMIT_NOFILE, (64, 128))
 
-        except (OSError, ValueError):
+        except (OSError, ValueError, AttributeError):
             # Resource limits may fail on some systems, continue without them
             pass
 
@@ -140,7 +145,7 @@ class SecureDocumentDownloader:
 
         try:
             # Set up timeout alarm
-            signal.alarm(self.config.download_timeout)
+            # Set up timeout (cross-platform via requests timeout parameter)
 
             # Get file info first
             response = self.session.head(url, timeout=self.config.download_timeout)
@@ -191,7 +196,7 @@ class SecureDocumentDownloader:
                     if chunk:
                         downloaded += len(chunk)
                         if downloaded > self.config.max_file_size:
-                            signal.alarm(0)
+                            # Timeout handled by requests
                             raise DocumentDownloadError(
                                 "File size exceeded during download"
                             )
@@ -204,19 +209,19 @@ class SecureDocumentDownloader:
 
             # Validate document format
             if not self.validate_document_format_buffer(use_buffer, content_type):
-                signal.alarm(0)
+                # Timeout handled by requests
                 raise DocumentDownloadError(
                     "Downloaded file is not a supported document format"
                 )
 
-            signal.alarm(0)  # Cancel timeout
+            # Timeout handled by requests  # Cancel timeout
             return use_buffer
 
         except requests.RequestException as e:
-            signal.alarm(0)
+            # Timeout handled by requests
             raise DocumentDownloadError(f"Download failed: {str(e)}")
         except Exception as e:
-            signal.alarm(0)
+            # Timeout handled by requests
             raise DocumentDownloadError(f"Unexpected error: {str(e)}")
 
     def save_buffer_to_file(

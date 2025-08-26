@@ -581,12 +581,19 @@ def test_sandbox():
     click.echo("\n🔒 Resource limits test:")
     try:
         import resource
+        import platform
 
-        # Test if we can set resource limits
-        current_limit = resource.getrlimit(resource.RLIMIT_AS)
-        click.echo(
-            f"  ✅ Resource limits supported (current memory limit: {current_limit[0]})"
-        )
+        if platform.system() == "Windows":
+            click.echo(
+                "  ℹ️ Resource limits not available on Windows (using container limits)"
+            )
+        else:
+            # Test if we can set resource limits
+            current_limit = resource.getrlimit(resource.RLIMIT_AS)
+            click.echo(
+                f"  ✅ Resource limits supported "
+                f"(current memory limit: {current_limit[0]})"
+            )
 
     except Exception as e:
         click.echo(f"  ❌ Resource limits not available: {e}")
