@@ -6,16 +6,12 @@ sanitization, testing the integration of all system components together
 in realistic scenarios.
 """
 
-import tempfile
 import time
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 import responses
 
-from defuse.cli import main
-from defuse.config import Config
 from defuse.formats import FileTypeDetector, SupportedFormat
 from defuse.sandbox import SandboxedDownloader
 from defuse.sanitizer import DocumentSanitizer
@@ -48,10 +44,10 @@ endobj
 endobj
 xref
 0 4
-0000000000 65535 f 
-0000000010 00000 n 
-0000000079 00000 n 
-0000000173 00000 n 
+0000000000 65535 f
+0000000010 00000 n
+0000000079 00000 n
+0000000173 00000 n
 trailer
 << /Size 4 /Root 1 0 R >>
 startxref

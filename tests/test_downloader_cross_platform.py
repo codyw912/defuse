@@ -5,9 +5,6 @@ Simplified tests for HTTP/HTTPS download functionality across platforms.
 These tests focus on platform-specific behaviors and detection.
 """
 
-import platform
-import tempfile
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest

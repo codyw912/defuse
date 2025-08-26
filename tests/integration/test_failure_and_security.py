@@ -8,14 +8,13 @@ and malicious inputs.
 
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from urllib.parse import urlparse
 
 import pytest
 import responses
 
-from defuse.config import Config
-from defuse.sandbox import SandboxedDownloader, SandboxBackend
+from defuse.sandbox import SandboxedDownloader
 from defuse.sanitizer import DocumentSanitizer
 from defuse.formats import FileTypeDetector
 
@@ -78,7 +77,6 @@ class TestFailureRecovery:
 
     def test_container_daemon_unavailable(self):
         """Test behavior when container daemon is not available."""
-        from defuse.cli import check_container_runtime
 
         # Test container runtime detection - should handle unavailable gracefully
         with patch("defuse.cli.check_container_runtime") as mock_check:

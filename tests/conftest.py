@@ -2,10 +2,9 @@
 Shared pytest fixtures and test configuration.
 """
 
-import io
 import tempfile
 from pathlib import Path
-from typing import Generator, Dict, Any
+from typing import Generator, Dict
 from unittest.mock import MagicMock, patch
 
 import pytest

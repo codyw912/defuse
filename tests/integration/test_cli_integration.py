@@ -6,7 +6,6 @@ real inputs, proper configuration loading, and integration with the
 underlying sandbox and sanitization systems.
 """
 
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -16,7 +15,6 @@ import responses
 from click.testing import CliRunner
 
 from defuse.cli import main
-from defuse.config import Config
 
 
 @pytest.fixture

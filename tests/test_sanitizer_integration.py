@@ -13,7 +13,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from defuse.config import Config, SanitizerConfig
+from defuse.config import SanitizerConfig
 from defuse.sanitizer import DocumentSanitizer
 from defuse.cli import find_dangerzone_cli
 
@@ -27,7 +27,7 @@ class TestCrossPlatformSanitizerDetection:
             with patch("defuse.cli.Path.exists") as mock_exists:
                 mock_exists.return_value = False  # No paths exist
 
-                result = find_dangerzone_cli()
+                _ = find_dangerzone_cli()  # Just testing that it doesn't crash
 
                 # Should have checked platform-appropriate paths
                 calls = [str(call[0][0]) for call in mock_exists.call_args_list]

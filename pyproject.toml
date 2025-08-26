@@ -56,3 +56,10 @@ dev = [
     "responses>=0.25.8",
     "ty>=0.0.1a19",
 ]
+
+[tool.ruff.lint]
+# Enable unused import and variable checks to match CI
+select = ["E", "F", "W"]
+
+# Be more lenient with test files for practical reasons
+per-file-ignores = {"tests/*" = ["F841", "E501"]}

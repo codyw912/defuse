@@ -81,7 +81,7 @@ def save_user_config(config: Config):
 
 def find_dangerzone_cli() -> Optional[Path]:
     """Find Dangerzone CLI executable."""
-    
+
     # Check if already in PATH first
     cli_path = shutil.which("dangerzone-cli")
     if cli_path:
@@ -96,12 +96,14 @@ def find_dangerzone_cli() -> Optional[Path]:
 
     # Platform-specific search in common installation locations
     system = platform.system()
-    
+
     if system == "Darwin":
         # macOS: Check inside app bundle (GUI app installation)
         macos_paths = [
             Path("/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli"),
-            Path("~/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli").expanduser(),
+            Path(
+                "~/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli"
+            ).expanduser(),
             # Homebrew installation
             Path("/opt/homebrew/bin/dangerzone-cli"),
             Path("/usr/local/bin/dangerzone-cli"),
@@ -109,7 +111,7 @@ def find_dangerzone_cli() -> Optional[Path]:
         for path in macos_paths:
             if path.exists():
                 return path
-                
+
     elif system == "Linux":
         # Linux: Check common package manager installation locations
         linux_paths = [
@@ -129,7 +131,7 @@ def find_dangerzone_cli() -> Optional[Path]:
         for path in linux_paths:
             if path.exists():
                 return path
-                
+
     elif system == "Windows":
         # Windows: Check common installation locations
         windows_paths = [
@@ -426,7 +428,7 @@ def batch(urls_file, output_dir, keep_originals, verbose):
                 )
                 output_filename = f"{base_name}_defused.pdf"
 
-                sanitized_file = sanitizer.sanitize(downloaded_file, output_filename)
+                sanitizer.sanitize(downloaded_file, output_filename)
 
                 if not keep_originals:
                     downloaded_file.unlink(missing_ok=True)
@@ -562,7 +564,7 @@ def test_sandbox():
         import tempfile
 
         # Test BytesIO
-        test_buffer = io.BytesIO(b"Test data")
+        io.BytesIO(b"Test data")  # Test BytesIO creation
         click.echo("  ✅ BytesIO support")
 
         # Test SpooledTemporaryFile
@@ -633,7 +635,8 @@ def security_report():
         click.echo()
         click.echo("Current Configuration:")
         click.echo(
-            f"  Memory-first downloads: {'✅' if config.sandbox.prefer_memory_download else '❌'}"
+            f"  Memory-first downloads: "
+            f"{'✅' if config.sandbox.prefer_memory_download else '❌'}"
         )
         click.echo(f"  Memory buffer limit: {config.sandbox.max_memory_buffer_mb}MB")
         click.echo(

@@ -2,9 +2,7 @@
 Unit tests for configuration management.
 """
 
-import os
 from pathlib import Path
-from unittest.mock import patch, mock_open
 
 import pytest
 import yaml

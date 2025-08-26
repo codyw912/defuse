@@ -5,9 +5,8 @@ These tests focus on CLI argument validation, error paths, and command behavior
 without requiring external dependencies like Docker or Dangerzone.
 """
 
-import pytest
 from click.testing import CliRunner
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from pathlib import Path
 
 from defuse.cli import main

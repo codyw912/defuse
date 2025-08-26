@@ -8,12 +8,10 @@ Docker, HTTP servers, and file systems.
 
 import http.server
 import socketserver
-import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Dict, Generator
-from unittest.mock import MagicMock
+from typing import Dict
 
 import pytest
 import responses

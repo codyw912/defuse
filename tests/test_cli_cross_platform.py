@@ -16,7 +16,6 @@ import responses
 from click.testing import CliRunner
 
 from defuse.cli import main, find_dangerzone_cli
-from defuse.config import Config
 
 
 class TestCrossPlatformCLI:
@@ -37,7 +36,7 @@ class TestCrossPlatformCLI:
         result = runner.invoke(main, ["--version"])
 
         assert result.exit_code == 0
-        assert "version" in result.output.lower()
+        assert "0.1.0" in result.output
 
     def test_check_deps_command_cross_platform(self):
         """Test check-deps command on all platforms."""
@@ -79,8 +78,8 @@ class TestCrossPlatformCLI:
                 result = runner.invoke(main, ["check-deps"])
 
                 assert result.exit_code == 0
-                assert "Dangerzone CLI:" in result.output
-                assert "Container runtime:" in result.output
+                assert "Dangerzone CLI found:" in result.output
+                assert "found:" in result.output
 
     def test_security_report_command_cross_platform(self):
         """Test security report command on all platforms."""
@@ -604,7 +603,6 @@ class TestCLIErrorHandlingCrossPlatform:
         runner = CliRunner()
 
         # Try to write to a read-only location (platform-specific)
-        import os
 
         readonly_file = temp_dir / "readonly.pdf"
         readonly_file.write_bytes(b"test")

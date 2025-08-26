@@ -8,7 +8,7 @@ import subprocess
 import platform
 import tempfile
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 from enum import Enum
 
 from .config import Config
@@ -98,7 +98,10 @@ class SandboxCapabilities:
             return False
 
     def _get_recommended_backend(self) -> SandboxBackend:
-        """Get recommended backend prioritizing security (defense in depth with Dangerzone)"""
+        """Get recommended backend prioritizing security.
+
+        Provides defense in depth with Dangerzone.
+        """
         # Priority order: specialized Linux sandboxes > Podman > Docker
         if self.available_backends.get(SandboxBackend.FIREJAIL, False):
             return SandboxBackend.FIREJAIL
@@ -112,7 +115,8 @@ class SandboxCapabilities:
             return SandboxBackend.DOCKER
         else:
             raise RuntimeError(
-                "No suitable sandboxing backend available. Docker/Podman is required (same as Dangerzone)."
+                "No suitable sandboxing backend available. "
+                "Docker/Podman is required (same as Dangerzone)."
             )
 
     def get_max_isolation_level(self) -> IsolationLevel:
@@ -182,11 +186,11 @@ def setup_resource_limits():
         # Limit virtual memory
         max_memory = {self.config.sandbox.max_memory_mb} * 1024 * 1024
         resource.setrlimit(resource.RLIMIT_AS, (max_memory, max_memory))
-        
+
         # Limit CPU time
         max_cpu_time = {self.config.sandbox.max_cpu_seconds}
         resource.setrlimit(resource.RLIMIT_CPU, (max_cpu_time, max_cpu_time))
-        
+
         # Limit file descriptors
         resource.setrlimit(resource.RLIMIT_NOFILE, (64, 128))
     except (OSError, ValueError):
@@ -209,18 +213,20 @@ def validate_url(url):
 
 def download_to_memory(session, url, max_memory_size):
     """Download to memory with automatic spillover to disk"""
-    response = session.get(url, timeout={self.config.sandbox.download_timeout}, stream=True)
+    response = session.get(
+        url, timeout={self.config.sandbox.download_timeout}, stream=True
+    )
     response.raise_for_status()
-    
+
     # Check content length
     content_length = int(response.headers.get('content-length', 0))
     if content_length > {self.config.sandbox.max_file_size}:
         raise ContainerDownloadError(f"File too large: {{content_length}} bytes")
-    
+
     # Use SpooledTemporaryFile for memory-first strategy
     buffer = tempfile.SpooledTemporaryFile(max_size=max_memory_size, mode='w+b')
     downloaded = 0
-    
+
     # Progress tracking
     for chunk in response.iter_content(chunk_size=8192):
         if chunk:
@@ -228,11 +234,11 @@ def download_to_memory(session, url, max_memory_size):
             if downloaded > {self.config.sandbox.max_file_size}:
                 raise ContainerDownloadError("File size exceeded during download")
             buffer.write(chunk)
-            
+
             # Basic progress output every MB
             if downloaded % (1024*1024) == 0:
                 print(f"Downloaded: {{downloaded // (1024*1024)}}MB", file=sys.stderr)
-    
+
     buffer.seek(0)
     return buffer
 
@@ -240,21 +246,21 @@ def download_document(url, output_path):
     """Main download function with full security features"""
     try:
         setup_resource_limits()
-        
+
         if not validate_url(url):
             raise ContainerDownloadError(f"Invalid or restricted URL: {{url}}")
-        
+
         # Setup session with proper headers
         session = requests.Session()
         session.headers.update({{
             'User-Agent': '{self.config.sandbox.user_agent}',
             'Accept': '*/*',
         }})
-        
+
         # Memory-first download strategy
         max_memory_size = {self.config.sandbox.max_memory_buffer_mb} * 1024 * 1024
         memory_buffer = download_to_memory(session, url, max_memory_size)
-        
+
         # Save buffer to output file
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, 'wb') as f:
@@ -263,10 +269,10 @@ def download_document(url, output_path):
                 if not chunk:
                     break
                 f.write(chunk)
-        
+
         memory_buffer.close()
         print(f"SUCCESS: Downloaded to {{output_path}}")
-        
+
     except Exception as e:
         print(f"ERROR: {{str(e)}}")
         sys.exit(1)
@@ -299,7 +305,8 @@ if __name__ == "__main__":
                 "--noroot",  # Don't allow root access
                 "--private-tmp",  # Private tmp directory
                 "--private-dev",  # Private /dev directory
-                f"--rlimit-fsize={self.config.sandbox.max_file_size}",  # File size limit
+                f"--rlimit-fsize={self.config.sandbox.max_file_size}",
+                # File size limit
                 "--rlimit-nofile=64",  # File descriptor limit
                 "--rlimit-nproc=10",  # Process limit
                 "--timeout=120",  # Timeout after 2 minutes
@@ -405,18 +412,20 @@ max_size = {self.config.sandbox.max_file_size}
 
 try:
     # Download with size limit
-    with urllib.request.urlopen(url, timeout={self.config.sandbox.download_timeout}) as response:
-        if hasattr(response, 'length') and response.length and response.length > max_size:
+    timeout = {self.config.sandbox.download_timeout}
+    with urllib.request.urlopen(url, timeout=timeout) as response:
+        if (hasattr(response, 'length') and response.length and
+            response.length > max_size):
             raise Exception(f'File too large: {{response.length}} bytes')
-        
+
         data = response.read(max_size + 1)
         if len(data) > max_size:
             raise Exception(f'File too large: {{len(data)}} bytes')
-        
+
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, 'wb') as f:
             f.write(data)
-        
+
         print(f'SUCCESS: Downloaded {{len(data)}} bytes to {{output_path}}')
 
 except Exception as e:
@@ -485,18 +494,20 @@ max_size = {self.config.sandbox.max_file_size}
 
 try:
     # Download with size limit
-    with urllib.request.urlopen(url, timeout={self.config.sandbox.download_timeout}) as response:
-        if hasattr(response, 'length') and response.length and response.length > max_size:
+    timeout = {self.config.sandbox.download_timeout}
+    with urllib.request.urlopen(url, timeout=timeout) as response:
+        if (hasattr(response, 'length') and response.length and
+            response.length > max_size):
             raise Exception(f'File too large: {{response.length}} bytes')
-        
+
         data = response.read(max_size + 1)
         if len(data) > max_size:
             raise Exception(f'File too large: {{len(data)}} bytes')
-        
+
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, 'wb') as f:
             f.write(data)
-        
+
         print(f'SUCCESS: Downloaded {{len(data)}} bytes to {{output_path}}')
 
 except Exception as e:

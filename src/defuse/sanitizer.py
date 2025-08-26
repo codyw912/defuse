@@ -1,7 +1,7 @@
 import subprocess
 import shutil
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 from .config import SanitizerConfig
 
@@ -104,7 +104,8 @@ class DocumentSanitizer:
                     # Rename to requested filename
                     safe_file.rename(output_path)
                 else:
-                    # Look for any new files in output directory (Dangerzone outputs PDF)
+                    # Look for any new files in output directory
+                    # (Dangerzone outputs PDF)
                     output_files = list(self.config.output_dir.glob("*"))
                     if output_files:
                         # Use the most recently created one

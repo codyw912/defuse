@@ -2,7 +2,6 @@
 File format detection and validation for all Dangerzone-supported types.
 """
 
-import io
 from enum import Enum
 from pathlib import Path
 from typing import Optional, BinaryIO, Tuple, Dict, List, Set

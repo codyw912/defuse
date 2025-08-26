@@ -2,14 +2,13 @@
 Unit tests for sandbox capabilities and backend management.
 """
 
-import platform
 from pathlib import Path
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 import subprocess
 
 import pytest
 
-from defuse.config import Config, get_default_config
+from defuse.config import Config
 from defuse.sandbox import (
     IsolationLevel,
     SandboxBackend,

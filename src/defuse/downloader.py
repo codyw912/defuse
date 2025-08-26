@@ -1,16 +1,15 @@
-import os
 import io
 import tempfile
 import urllib.parse
 import resource
 import signal
 from pathlib import Path
-from typing import Optional, Tuple, Union, BinaryIO
+from typing import Optional, Union, BinaryIO
 import requests
 from tqdm import tqdm
 
 from .config import SandboxConfig
-from .formats import FileTypeDetector, is_supported_format
+from .formats import FileTypeDetector
 
 
 class DocumentDownloadError(Exception):
