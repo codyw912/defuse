@@ -123,7 +123,12 @@ class TestSandboxCapabilities:
     @patch("subprocess.run")
     def test_docker_detection_daemon_not_running(self, mock_run, mock_which):
         """Test Docker detection when binary exists but daemon isn't running."""
-        mock_which.return_value = "/usr/bin/docker"
+
+        # Only Docker exists in PATH, other tools don't exist
+        def mock_which_side_effect(cmd):
+            return "/usr/bin/docker" if cmd == "docker" else None
+
+        mock_which.side_effect = mock_which_side_effect
         mock_result = MagicMock()
         mock_result.returncode = 1  # Docker daemon not running
         mock_run.return_value = mock_result

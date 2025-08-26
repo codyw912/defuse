@@ -21,7 +21,11 @@ class TestSandboxCapabilitiesErrorPaths:
     def test_docker_detection_timeout(self):
         """Test Docker detection when command times out."""
         with patch("defuse.sandbox.shutil.which") as mock_which:
-            mock_which.return_value = "/usr/bin/docker"  # Docker exists in PATH
+            # Only Docker exists in PATH, other tools don't exist
+            def mock_which_side_effect(cmd):
+                return "/usr/bin/docker" if cmd == "docker" else None
+
+            mock_which.side_effect = mock_which_side_effect
 
             with patch("defuse.sandbox.subprocess.run") as mock_run:
                 mock_run.side_effect = subprocess.TimeoutExpired("docker", 5)
