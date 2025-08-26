@@ -72,7 +72,7 @@ class SandboxCapabilities:
                 [docker_path, "info"], capture_output=True, timeout=5
             )
             return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
             return False
 
     def _check_podman_available(self) -> bool:
@@ -86,20 +86,18 @@ class SandboxCapabilities:
                 [podman_path, "info"], capture_output=True, timeout=5
             )
             return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
             return False
 
     def _get_recommended_backend(self) -> SandboxBackend:
         """Get recommended backend prioritizing security (defense in depth with Dangerzone)"""
-        # Priority order: specialized Linux sandboxes > container runtimes
+        # Priority order: specialized Linux sandboxes > Podman > Docker
         if self.available_backends.get(SandboxBackend.FIREJAIL, False):
             return SandboxBackend.FIREJAIL
         elif self.available_backends.get(SandboxBackend.BUBBLEWRAP, False):
             return SandboxBackend.BUBBLEWRAP
-        elif self.platform == "linux" and self.available_backends.get(
-            SandboxBackend.PODMAN, False
-        ):
-            return SandboxBackend.PODMAN  # Podman preferred on Linux
+        elif self.available_backends.get(SandboxBackend.PODMAN, False):
+            return SandboxBackend.PODMAN  # Podman preferred over Docker on all platforms
         elif self.available_backends.get(SandboxBackend.DOCKER, False):
             return SandboxBackend.DOCKER
         else:
