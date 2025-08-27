@@ -70,6 +70,7 @@ Thumbs.db
 # Internal docs 
 ROADMAP.md
 TESTING_STRATEGY.md
+AGENTS.md
 
 # Output directory (test artifacts)
 output/
