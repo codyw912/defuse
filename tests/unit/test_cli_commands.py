@@ -251,24 +251,31 @@ class TestBatchCommandEdgeCases:
         with patch("defuse.cli.find_dangerzone_cli") as mock_find_dz:
             mock_find_dz.return_value = Path("/usr/bin/dangerzone-cli")
 
-            with patch("defuse.sandbox.SandboxCapabilities") as mock_capabilities:
-                mock_caps_instance = mock_capabilities.return_value
-                mock_caps_instance.available_backends = {
-                    "docker": True,
-                    "podman": False,
-                    "firejail": False,
-                    "bubblewrap": False,
-                    "auto": True,
-                }
-                mock_caps_instance.recommended_backend = "docker"
-                with runner.isolated_filesystem():
-                    empty_file = Path("empty.txt")
-                    empty_file.write_text("")
+            with patch("defuse.cli.check_container_runtime") as mock_check_runtime:
+                mock_check_runtime.return_value = (
+                    "docker",
+                    "/usr/bin/docker",
+                    "20.10.0",
+                )
 
-                    result = runner.invoke(main, ["batch", str(empty_file)])
+                with patch("defuse.sandbox.SandboxCapabilities") as mock_capabilities:
+                    mock_caps_instance = mock_capabilities.return_value
+                    mock_caps_instance.available_backends = {
+                        "docker": True,
+                        "podman": False,
+                        "firejail": False,
+                        "bubblewrap": False,
+                        "auto": True,
+                    }
+                    mock_caps_instance.recommended_backend = "docker"
+                    with runner.isolated_filesystem():
+                        empty_file = Path("empty.txt")
+                        empty_file.write_text("")
 
-                    assert result.exit_code == 1
-                    assert "No URLs found" in result.output
+                        result = runner.invoke(main, ["batch", str(empty_file)])
+
+                        assert result.exit_code == 1
+                        assert "No URLs found" in result.output
 
     def test_batch_only_comments_urls_file(self):
         """Test batch command with URLs file containing only comments."""
@@ -277,24 +284,33 @@ class TestBatchCommandEdgeCases:
         with patch("defuse.cli.find_dangerzone_cli") as mock_find_dz:
             mock_find_dz.return_value = Path("/usr/bin/dangerzone-cli")
 
-            with patch("defuse.sandbox.SandboxCapabilities") as mock_capabilities:
-                mock_caps_instance = mock_capabilities.return_value
-                mock_caps_instance.available_backends = {
-                    "docker": True,
-                    "podman": False,
-                    "firejail": False,
-                    "bubblewrap": False,
-                    "auto": True,
-                }
-                mock_caps_instance.recommended_backend = "docker"
-                with runner.isolated_filesystem():
-                    comments_file = Path("comments.txt")
-                    comments_file.write_text("# This is a comment\n# Another comment\n")
+            with patch("defuse.cli.check_container_runtime") as mock_check_runtime:
+                mock_check_runtime.return_value = (
+                    "docker",
+                    "/usr/bin/docker",
+                    "20.10.0",
+                )
 
-                    result = runner.invoke(main, ["batch", str(comments_file)])
+                with patch("defuse.sandbox.SandboxCapabilities") as mock_capabilities:
+                    mock_caps_instance = mock_capabilities.return_value
+                    mock_caps_instance.available_backends = {
+                        "docker": True,
+                        "podman": False,
+                        "firejail": False,
+                        "bubblewrap": False,
+                        "auto": True,
+                    }
+                    mock_caps_instance.recommended_backend = "docker"
+                    with runner.isolated_filesystem():
+                        comments_file = Path("comments.txt")
+                        comments_file.write_text(
+                            "# This is a comment\n# Another comment\n"
+                        )
 
-                    assert result.exit_code == 1
-                    assert "No URLs found" in result.output
+                        result = runner.invoke(main, ["batch", str(comments_file)])
+
+                        assert result.exit_code == 1
+                        assert "No URLs found" in result.output
 
     def test_batch_mixed_comments_and_urls(self):
         """Test batch command with mixed comments and URLs."""

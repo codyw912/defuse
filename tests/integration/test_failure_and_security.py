@@ -572,6 +572,13 @@ class TestStressAndReliability:
 
     def test_long_running_stability(self, integration_config, temp_dir):
         """Test stability over extended operation periods."""
+        # Check if we have any working sandbox backends
+        from defuse.sandbox import get_sandbox_capabilities
+
+        capabilities = get_sandbox_capabilities()
+        if not any(capabilities.available_backends.values()):
+            pytest.skip("No sandbox backends available in CI environment")
+
         # Simulate long-running operation with periodic downloads
         start_time = time.time()
         operations = 0
@@ -596,4 +603,14 @@ class TestStressAndReliability:
                 time.sleep(0.1)
 
         # Should complete many operations successfully
+        # In CI environments with limited sandbox support, we may complete fewer operations
+        if operations < 10:
+            # Check if this is due to sandbox failures
+            from defuse.sandbox import get_sandbox_capabilities
+
+            capabilities = get_sandbox_capabilities()
+            if not any(capabilities.available_backends.values()):
+                pytest.skip(
+                    f"Only completed {operations} operations - no working sandbox backends in CI"
+                )
         assert operations >= 10
