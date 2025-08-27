@@ -133,8 +133,8 @@ defuse config --dangerzone-path /custom/path/to/dangerzone-cli
 - **Format Detection**: Automatically detects document format using magic bytes
 - **Defense in Depth**: Layered security with download isolation + Dangerzone's container-based sanitization
 - **Adaptive Sandboxing**: Automatically selects the best available sandbox backend:
-  - **Linux**: Firejail or Bubblewrap (maximum isolation) > Podman > Docker > subprocess fallback
-  - **macOS/Windows**: Docker > Podman > subprocess fallback
+  - **All Platforms**: Docker (recommended) > Podman
+  - **Linux Experimental**: Firejail and Bubblewrap are available as experimental options but may not work reliably in all environments (especially CI/containers)
 
 ## Configuration
 

@@ -98,25 +98,26 @@ class SandboxCapabilities:
             return False
 
     def _get_recommended_backend(self) -> SandboxBackend:
-        """Get recommended backend prioritizing security.
+        """Get recommended backend prioritizing compatibility and reliability.
 
-        Provides defense in depth with Dangerzone.
+        Docker is the default as it's most widely available and tested.
+        Firejail and Bubblewrap are experimental options.
         """
-        # Priority order: specialized Linux sandboxes > Podman > Docker
-        if self.available_backends.get(SandboxBackend.FIREJAIL, False):
+        # Priority order: Docker > Podman > experimental Linux sandboxes
+        if self.available_backends.get(SandboxBackend.DOCKER, False):
+            return SandboxBackend.DOCKER
+        elif self.available_backends.get(SandboxBackend.PODMAN, False):
+            return SandboxBackend.PODMAN
+        elif self.available_backends.get(SandboxBackend.FIREJAIL, False):
+            # Experimental - may not work in all environments
             return SandboxBackend.FIREJAIL
         elif self.available_backends.get(SandboxBackend.BUBBLEWRAP, False):
+            # Experimental - may not work in all environments
             return SandboxBackend.BUBBLEWRAP
-        elif self.available_backends.get(SandboxBackend.PODMAN, False):
-            return (
-                SandboxBackend.PODMAN
-            )  # Podman preferred over Docker on all platforms
-        elif self.available_backends.get(SandboxBackend.DOCKER, False):
-            return SandboxBackend.DOCKER
         else:
             raise RuntimeError(
                 "No suitable sandboxing backend available. "
-                "Docker/Podman is required (same as Dangerzone)."
+                "Docker or Podman is required for Defuse to function properly."
             )
 
     def get_max_isolation_level(self) -> IsolationLevel:
@@ -163,6 +164,15 @@ class SandboxedDownloader:
         # Auto-select best backend if set to auto
         if self.backend == SandboxBackend.AUTO:
             self.backend = self.capabilities.recommended_backend
+
+        # Warn about experimental backends
+        if self.backend in [SandboxBackend.FIREJAIL, SandboxBackend.BUBBLEWRAP]:
+            print(
+                f"Warning: {self.backend.value} is an experimental sandbox backend. "
+                "It may not work reliably in all environments "
+                "(especially CI/containers). "
+                "Consider using Docker or Podman for better compatibility."
+            )
 
     def create_download_script(self, url: str, output_path: Path) -> Path:
         """Create a temporary Python script for isolated download"""

@@ -578,22 +578,38 @@ class TestStressAndReliability:
 
         downloader = SandboxedDownloader(integration_config)
 
+        # Note: Since Docker is now the default backend, we ensure it's used
+        # by mocking other backends to fail. In CI, Docker is available.
+
         # Run for a short time in tests (would be longer in real scenarios)
         while time.time() - start_time < 2.0 and operations < 20:
-            with patch.object(downloader, "run_docker_download") as mock_download:
-                output_file = temp_dir / f"stability_{operations}.pdf"
-                output_file.write_bytes(f"Stability test {operations}".encode())
-                mock_download.return_value = True
+            # Mock all sandbox methods to ensure Docker is used (now the default)
+            with patch.object(downloader, "run_docker_download") as mock_docker:
+                with patch.object(
+                    downloader, "run_firejail_download", return_value=False
+                ):
+                    with patch.object(
+                        downloader, "run_bubblewrap_download", return_value=False
+                    ):
+                        with patch.object(
+                            downloader, "run_podman_download", return_value=False
+                        ):
+                            output_file = temp_dir / f"stability_{operations}.pdf"
+                            output_file.write_bytes(
+                                f"Stability test {operations}".encode()
+                            )
+                            mock_docker.return_value = True
 
-                result = downloader.sandboxed_download(
-                    f"http://example.com/stability_{operations}.pdf", output_file
-                )
+                            result = downloader.sandboxed_download(
+                                f"http://example.com/stability_{operations}.pdf",
+                                output_file,
+                            )
 
-                assert result == output_file
-                operations += 1
+                            assert result == output_file
+                            operations += 1
 
-                # Brief pause to simulate realistic usage
-                time.sleep(0.1)
+                            # Brief pause to simulate realistic usage
+                            time.sleep(0.1)
 
         # Should complete many operations successfully
         assert operations >= 10

@@ -183,7 +183,7 @@ def main(ctx, version):
 @click.option(
     "--sandbox-backend",
     type=click.Choice(["auto", "firejail", "bubblewrap", "podman", "docker"]),
-    help="Sandbox backend to use",
+    help="Sandbox backend to use (firejail/bubblewrap are experimental)",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 def download(
