@@ -35,6 +35,8 @@ jobs:
         echo "Installed sandbox tools:"
         firejail --version || echo "Firejail not available"
         bwrap --version || echo "Bubblewrap not available"
+        # Note: These tools may have restrictions in GitHub Actions
+        # Docker is the preferred backend in CI
 
     - name: Check Docker availability
       run: |

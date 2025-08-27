@@ -294,13 +294,51 @@ if __name__ == "__main__":
 
     def run_firejail_download(self, url: str, output_path: Path) -> bool:
         """Run download using Firejail sandbox"""
-        script_path = self.create_download_script(url, output_path)
 
         try:
+            # Container output path - just the filename
+            container_output = f"/output/{output_path.name}"
+
+            # Build inline Python script for download
+            download_cmd = f"""
+import sys
+import urllib.request
+import urllib.error
+from pathlib import Path
+
+url = '{url}'
+output_path = '{container_output}'
+max_size = {self.config.sandbox.max_file_size}
+
+try:
+    # Download with size limit and proper User-Agent
+    timeout = {self.config.sandbox.download_timeout}
+    user_agent = '{self.config.sandbox.user_agent}'
+    req = urllib.request.Request(url, headers={{'User-Agent': user_agent}})
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        if (hasattr(response, 'length') and response.length and
+            response.length > max_size):
+            raise Exception(f'File too large: {{response.length}} bytes')
+
+        data = response.read(max_size + 1)
+        if len(data) > max_size:
+            raise Exception(f'File too large: {{len(data)}} bytes')
+
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, 'wb') as f:
+            f.write(data)
+
+        print(f'SUCCESS: Downloaded {{len(data)}} bytes to {{output_path}}')
+
+except Exception as e:
+    print(f'ERROR: {{str(e)}}')
+    sys.exit(1)
+"""
+
             cmd = [
                 "firejail",
                 "--noprofile",  # Don't use application profiles
-                "--net=none",  # No network access after initial setup
+                # Network access is needed for downloads
                 "--seccomp",  # Enable seccomp filtering
                 "--noroot",  # Don't allow root access
                 "--private-tmp",  # Private tmp directory
@@ -310,8 +348,10 @@ if __name__ == "__main__":
                 "--rlimit-nofile=64",  # File descriptor limit
                 "--rlimit-nproc=10",  # Process limit
                 "--timeout=00:02:00",  # Timeout after 2 minutes
+                f"--bind={output_path.parent}:/output",  # Bind output directory
                 "python3",
-                str(script_path),
+                "-c",
+                download_cmd,  # Run inline script
             ]
 
             result = subprocess.run(
@@ -333,8 +373,6 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Firejail error: {str(e)}")
             return False
-        finally:
-            script_path.unlink(missing_ok=True)
 
     def run_bubblewrap_download(self, url: str, output_path: Path) -> bool:
         """Run download using Bubblewrap sandbox"""

@@ -388,30 +388,22 @@ class TestContainerRuntimeChecking:
                     assert script_path == Path("/tmp/script.py")
 
     def test_firejail_download_script_cleanup_on_error(self):
-        """Test that firejail download cleans up scripts on error."""
+        """Test that firejail download handles errors properly."""
         config = Config()
         config.sandbox = SandboxConfig()
 
         with patch("defuse.sandbox.SandboxCapabilities"):
             downloader = SandboxedDownloader(config)
 
-            mock_script = MagicMock()
-            mock_script_path = Path("/tmp/script.py")
+            with patch("defuse.sandbox.subprocess.run") as mock_run:
+                mock_run.side_effect = Exception("Firejail error")
 
-            with patch.object(downloader, "create_download_script") as mock_create:
-                mock_create.return_value = mock_script_path
+                result = downloader.run_firejail_download(
+                    "http://example.com/test.pdf", Path("/tmp/output.pdf")
+                )
 
-                with patch("defuse.sandbox.subprocess.run") as mock_run:
-                    mock_run.side_effect = Exception("Firejail error")
-
-                    with patch("pathlib.Path.unlink") as mock_unlink:
-                        result = downloader.run_firejail_download(
-                            "http://example.com/test.pdf", Path("/tmp/output.pdf")
-                        )
-
-                        assert result is False
-                        # Should clean up script even on error
-                        mock_unlink.assert_called()
+                assert result is False
+                # No script cleanup needed with inline scripts
 
     def test_bubblewrap_download_script_cleanup_on_error(self):
         """Test that bubblewrap download cleans up scripts on error."""

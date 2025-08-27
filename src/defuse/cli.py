@@ -580,14 +580,13 @@ def test_sandbox():
     # Resource limits test
     click.echo("\n🔒 Resource limits test:")
     try:
-        import resource
-        import platform
-
         if platform.system() == "Windows":
             click.echo(
                 "  ℹ️ Resource limits not available on Windows (using container limits)"
             )
         else:
+            import resource
+
             # Test if we can set resource limits
             current_limit = resource.getrlimit(resource.RLIMIT_AS)
             click.echo(
