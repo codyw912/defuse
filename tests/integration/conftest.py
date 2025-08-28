@@ -223,6 +223,7 @@ def mock_dangerzone_cli(temp_dir: Path):
         possible_paths = [
             "dangerzone-cli",  # In PATH
             "C:\\Program Files\\Dangerzone\\dangerzone-cli.exe",  # Windows default
+            "/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli",  # macOS app bundle
             "/usr/local/bin/dangerzone-cli",  # macOS/Linux common
             "/usr/bin/dangerzone-cli",  # Linux common
         ]

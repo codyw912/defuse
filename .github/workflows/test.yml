@@ -85,7 +85,42 @@ jobs:
           exit 1
         }
 
-    - name: Install Dangerzone
+    - name: Install Dangerzone (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        echo "Installing Dangerzone via apt..."
+        sudo apt-get update
+        sudo apt-get install -y dangerzone
+        
+        # Verify installation
+        if command -v dangerzone-cli >/dev/null 2>&1; then
+          echo "Dangerzone installed successfully"
+          dangerzone-cli --version
+          export DEFUSE_USE_REAL_DANGERZONE=1
+        else
+          echo "⚠️ Dangerzone installation failed, will use mocked tests"
+        fi
+
+    - name: Install Dangerzone (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        echo "Installing Dangerzone via Homebrew..."
+        brew install --cask dangerzone
+        
+        # Verify installation
+        if command -v dangerzone-cli >/dev/null 2>&1; then
+          echo "Dangerzone installed successfully"
+          dangerzone-cli --version
+          export DEFUSE_USE_REAL_DANGERZONE=1
+        elif [ -f "/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli" ]; then
+          echo "Dangerzone installed successfully (app bundle)"
+          /Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli --version
+          export DEFUSE_USE_REAL_DANGERZONE=1
+        else
+          echo "⚠️ Dangerzone installation failed, will use mocked tests"
+        fi
+
+    - name: Install Dangerzone (Windows)
       if: runner.os == 'Windows'
       shell: powershell
       run: |
@@ -127,6 +162,14 @@ jobs:
       run: |
         # Linux: Test all sandbox backends and cross-platform functionality
         if [ "$RUNNER_OS" == "Linux" ]; then
+          # Check if Dangerzone is installed for real integration testing
+          if command -v dangerzone-cli >/dev/null 2>&1; then
+            echo "🎉 Running Linux tests with REAL Dangerzone installation"
+            export DEFUSE_USE_REAL_DANGERZONE=1
+          else
+            echo "ℹ️ Running Linux tests with mocked Dangerzone"
+          fi
+          
           uv run pytest tests/integration/ -v --tb=short -m "not slow"
           # Test Linux-specific sandbox tools if available
           uv run pytest tests/test_linux_sandboxes.py -v --tb=short || echo "Linux sandbox tests skipped"
@@ -153,9 +196,17 @@ jobs:
         
         # macOS: Test Docker Desktop, app bundles, and macOS-specific functionality
         if [ "$RUNNER_OS" == "macOS" ]; then
-          uv run pytest tests/integration/ -v --tb=short -m "not slow" || echo "Integration tests skipped on macOS"
+          # Check if Dangerzone is installed for real integration testing
+          if command -v dangerzone-cli >/dev/null 2>&1 || [ -f "/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli" ]; then
+            echo "🎉 Running macOS tests with REAL Dangerzone installation"
+            export DEFUSE_USE_REAL_DANGERZONE=1
+          else
+            echo "ℹ️ Running macOS tests with mocked Dangerzone"
+          fi
+          
+          uv run pytest tests/integration/ -v --tb=short -m "not slow"
           # Test macOS-specific paths
-          uv run pytest tests/test_macos_integration.py -v --tb=short || echo "macOS-specific tests skipped"
+          uv run pytest tests/test_macos_integration.py -v --tb=short
           # Test cross-platform functionality
           uv run pytest tests/test_sanitizer_integration.py tests/test_downloader_cross_platform.py tests/test_cli_cross_platform.py -v --tb=short -m "not linux and not windows"
         fi
