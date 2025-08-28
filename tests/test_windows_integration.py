@@ -27,8 +27,13 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def windows_config():
     """Config for Windows testing."""
+    import tempfile
+    from pathlib import Path
+
     config = Config()
-    config.sandbox = SandboxConfig()
+    # Use proper Windows temp directory
+    windows_temp = Path(tempfile.gettempdir()) / "pdf-sandbox"
+    config.sandbox = SandboxConfig(temp_dir=windows_temp)
     return config
 
 
@@ -73,10 +78,10 @@ class TestWindowsDangerzoneDetection:
         with patch("defuse.cli.shutil.which", return_value=None):  # Not in PATH
             with patch("defuse.cli.Path.exists") as mock_exists:
 
-                def exists_side_effect():
+                def exists_side_effect(*args, **kwargs):
                     # Simulate finding Dangerzone in Program Files
-                    frame = mock_exists.call_args
-                    if frame and "Program Files" in str(frame[0][0]):
+                    # Check if this is a Program Files path
+                    if args and "Program Files" in str(args[0]):
                         return True
                     return False
 
