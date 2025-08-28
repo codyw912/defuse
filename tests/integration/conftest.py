@@ -243,8 +243,29 @@ printf "%%PDF-1.7\\nMock sanitized document\\n%%%%EOF" > "$2"
                 idx = cmd.index("--output-filename")
                 if idx + 1 < len(cmd):
                     output_file = kwargs.get("cwd", temp_dir) / cmd[idx + 1]
-                    # Create mock sanitized PDF
-                    output_content = b"%PDF-1.7\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\nMock sanitized document\n%%EOF"
+                    # Create mock sanitized PDF with proper structure and size
+                    # Must be >= 100 bytes and start with %PDF for validation
+                    output_content = b"""%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>
+endobj
+xref
+0 4
+0000000000 65535 f
+0000000010 00000 n
+0000000079 00000 n
+0000000173 00000 n
+trailer
+<< /Size 4 /Root 1 0 R >>
+startxref
+456
+%%EOF"""
                     Path(output_file).write_bytes(output_content)
 
             # Return successful result
