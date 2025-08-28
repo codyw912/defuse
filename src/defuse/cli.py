@@ -3,10 +3,10 @@ Command-line interface for Defuse.
 """
 
 import os
-import sys
-import shutil
 import platform
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -15,10 +15,10 @@ import click
 import yaml
 from tqdm import tqdm
 
-from .config import get_default_config, Config
-from .sanitizer import DocumentSanitizer, DocumentSanitizeError
-from .sandbox import SandboxedDownloader, get_sandbox_capabilities
+from .config import Config, get_default_config
 from .downloader import DocumentDownloadError
+from .sandbox import SandboxedDownloader, get_sandbox_capabilities
+from .sanitizer import DocumentSanitizeError, DocumentSanitizer
 
 
 def get_config_dir() -> Path:
@@ -104,7 +104,7 @@ def find_dangerzone_cli() -> Optional[Path]:
             Path(
                 "~/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli"
             ).expanduser(),
-            # Homebrew installation
+            # Homebrew installation -- installs as a cask so it shouldn't be here
             Path("/opt/homebrew/bin/dangerzone-cli"),
             Path("/usr/local/bin/dangerzone-cli"),
         ]

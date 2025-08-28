@@ -239,7 +239,7 @@ class TestWindowsConfiguration:
     @pytest.mark.windows
     def test_windows_config_paths(self):
         """Test Windows configuration path handling."""
-        from defuse.config import get_config_dir
+        from defuse.cli import get_config_dir
 
         config_dir = get_config_dir()
 
