@@ -208,60 +208,101 @@ def container_runtime_available(docker_available, podman_available):
 
 @pytest.fixture
 def mock_dangerzone_cli(temp_dir: Path):
-    """Mock dangerzone-cli for sanitization testing."""
+    """Mock dangerzone-cli for cross-platform sanitization testing."""
+    import os
+    import shutil
+    from unittest.mock import patch, MagicMock
+    import platform
+
+    # Check if we should use real Dangerzone instead of mocking
+    if os.environ.get("DEFUSE_USE_REAL_DANGERZONE"):
+        # Try to find real dangerzone-cli
+        real_dangerzone = None
+
+        # Look for dangerzone-cli in common locations
+        possible_paths = [
+            "dangerzone-cli",  # In PATH
+            "C:\\Program Files\\Dangerzone\\dangerzone-cli.exe",  # Windows default
+            "/usr/local/bin/dangerzone-cli",  # macOS/Linux common
+            "/usr/bin/dangerzone-cli",  # Linux common
+        ]
+
+        for path_candidate in possible_paths:
+            if shutil.which(path_candidate) or Path(path_candidate).exists():
+                real_dangerzone = Path(path_candidate)
+                print(f"✅ Using REAL Dangerzone at: {real_dangerzone}")
+                yield real_dangerzone
+                return
+
+        print(
+            "⚠️ DEFUSE_USE_REAL_DANGERZONE set but Dangerzone not found, falling back to mock"
+        )
+
     dangerzone_path = temp_dir / "mock-dangerzone-cli"
 
-    # Create a mock executable that simulates dangerzone behavior
-    mock_script = """#!/bin/bash
-# Mock dangerzone-cli for testing
-
-# Parse arguments to match real dangerzone CLI interface
-INPUT_FILE=""
-OUTPUT_FILENAME=""
-
-# First argument is the input file (positional)
-if [[ $# -ge 1 && ! "$1" =~ ^-- ]]; then
-    INPUT_FILE="$1"
-    shift
-fi
-
-# Parse remaining arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --output-filename)
-            OUTPUT_FILENAME="$2"
-            shift 2
-            ;;
-        --ocr-lang)
-            # OCR language option - just consume and ignore for mock
-            shift 2
-            ;;
-        --archive)
-            # Archive option - just consume and ignore for mock
-            shift
-            ;;
-        *)
-            shift
-            ;;
-    esac
-done
-
-# Simulate successful conversion
-if [[ -n "$INPUT_FILE" && -n "$OUTPUT_FILENAME" ]]; then
-    echo "Mock Dangerzone: Converting $INPUT_FILE to $OUTPUT_FILENAME"
-    # Create a mock sanitized PDF in current working directory (binary format)
-    printf "%%PDF-1.7\\n1 0 obj\\n<< /Type /Catalog /Pages 2 0 R >>\\nendobj\\nMock sanitized document from %s\\n%%%%EOF" "$(basename "$INPUT_FILE")" > "$OUTPUT_FILENAME"
-    exit 0
-else
-    echo "Mock Dangerzone: Invalid arguments" >&2
-    exit 1
-fi
+    # Create platform-appropriate mock executable
+    if platform.system() == "Windows":
+        # Create a Windows batch file
+        mock_script = """@echo off
+echo Mock Dangerzone: Converting %1 to %2
+echo %%PDF-1.7 > %2
+echo Mock sanitized document >> %2
+echo %%%%EOF >> %2
 """
+        dangerzone_path = dangerzone_path.with_suffix(".bat")
+        dangerzone_path.write_text(mock_script)
+    else:
+        # Create a Unix shell script
+        mock_script = """#!/bin/bash
+echo "Mock Dangerzone: Converting $1 to $2"
+printf "%%PDF-1.7\\nMock sanitized document\\n%%%%EOF" > "$2"
+"""
+        dangerzone_path.write_text(mock_script)
+        dangerzone_path.chmod(0o755)
 
-    dangerzone_path.write_text(mock_script)
-    dangerzone_path.chmod(0o755)
+    # Also mock subprocess.run to ensure consistent behavior across platforms
+    with patch("subprocess.run") as mock_run:
 
-    return dangerzone_path
+        def mock_dangerzone_call(cmd, *args, **kwargs):
+            # Extract output filename from command
+            if "--output-filename" in cmd:
+                idx = cmd.index("--output-filename")
+                if idx + 1 < len(cmd):
+                    output_file = kwargs.get("cwd", temp_dir) / cmd[idx + 1]
+                    # Create mock sanitized PDF with proper structure and size
+                    # Must be >= 100 bytes and start with %PDF for validation
+                    output_content = b"""%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>
+endobj
+xref
+0 4
+0000000000 65535 f
+0000000010 00000 n
+0000000079 00000 n
+0000000173 00000 n
+trailer
+<< /Size 4 /Root 1 0 R >>
+startxref
+456
+%%EOF"""
+                    Path(output_file).write_bytes(output_content)
+
+            # Return successful result
+            result = MagicMock()
+            result.returncode = 0
+            result.stdout = "Mock Dangerzone: Document converted successfully"
+            result.stderr = ""
+            return result
+
+        mock_run.side_effect = mock_dangerzone_call
+        yield dangerzone_path
 
 
 @pytest.fixture

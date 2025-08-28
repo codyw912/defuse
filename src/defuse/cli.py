@@ -3,10 +3,10 @@ Command-line interface for Defuse.
 """
 
 import os
-import sys
-import shutil
 import platform
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -15,10 +15,11 @@ import click
 import yaml
 from tqdm import tqdm
 
-from .config import get_default_config, Config
-from .sanitizer import DocumentSanitizer, DocumentSanitizeError
-from .sandbox import SandboxedDownloader, get_sandbox_capabilities
+from .config import Config, get_default_config
 from .downloader import DocumentDownloadError
+from .sandbox import SandboxedDownloader, get_sandbox_capabilities
+from .sanitizer import DocumentSanitizeError, DocumentSanitizer
+from .resources import get_resource_info
 
 
 def get_config_dir() -> Path:
@@ -104,7 +105,7 @@ def find_dangerzone_cli() -> Optional[Path]:
             Path(
                 "~/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli"
             ).expanduser(),
-            # Homebrew installation
+            # Homebrew installation -- installs as a cask so it shouldn't be here
             Path("/opt/homebrew/bin/dangerzone-cli"),
             Path("/usr/local/bin/dangerzone-cli"),
         ]
@@ -183,7 +184,7 @@ def main(ctx, version):
 @click.option(
     "--sandbox-backend",
     type=click.Choice(["auto", "firejail", "bubblewrap", "podman", "docker"]),
-    help="Sandbox backend to use",
+    help="Sandbox backend to use (firejail/bubblewrap are experimental)",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 def download(
@@ -579,23 +580,24 @@ def test_sandbox():
 
     # Resource limits test
     click.echo("\n🔒 Resource limits test:")
-    try:
+    resource_info = get_resource_info()
+
+    if not resource_info.supported:
         if platform.system() == "Windows":
             click.echo(
                 "  ℹ️ Resource limits not available on Windows (using container limits)"
             )
         else:
-            import resource
-
-            # Test if we can set resource limits
-            current_limit = resource.getrlimit(resource.RLIMIT_AS)
+            click.echo("  ❌ Resource limits not available on this platform")
+    else:
+        memory_limit = resource_info.memory_limit
+        if memory_limit and memory_limit[0] > 0:
             click.echo(
                 f"  ✅ Resource limits supported "
-                f"(current memory limit: {current_limit[0]})"
+                f"(current memory limit: {memory_limit[0]} bytes)"
             )
-
-    except Exception as e:
-        click.echo(f"  ❌ Resource limits not available: {e}")
+        else:
+            click.echo("  ✅ Resource limits supported")
 
     click.echo("\n🎯 Recommendation:")
     if capabilities.get_max_isolation_level().value == "paranoid":

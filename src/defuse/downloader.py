@@ -1,7 +1,6 @@
 import io
 import tempfile
 import urllib.parse
-import resource
 from pathlib import Path
 from typing import Optional, Union, BinaryIO
 import requests
@@ -9,6 +8,7 @@ from tqdm import tqdm
 
 from .config import SandboxConfig
 from .formats import FileTypeDetector
+from .resources import setup_download_limits
 
 
 class DocumentDownloadError(Exception):
@@ -33,28 +33,12 @@ class SecureDocumentDownloader:
         self._setup_resource_limits()
 
     def _setup_resource_limits(self):
-        """Set up resource limits for the download process (Unix only)"""
-        try:
-            import platform
+        """Set up resource limits for the download process"""
+        max_memory_mb = getattr(self.config, "max_memory_mb", 512)
+        max_cpu_seconds = getattr(self.config, "max_cpu_seconds", 60)
 
-            if platform.system() == "Windows":
-                # Resource limits not available on Windows
-                return
-
-            # Limit virtual memory to prevent memory exhaustion attacks
-            max_memory = getattr(self.config, "max_memory_mb", 512) * 1024 * 1024
-            resource.setrlimit(resource.RLIMIT_AS, (max_memory, max_memory))
-
-            # Limit CPU time to prevent CPU exhaustion
-            max_cpu_time = getattr(self.config, "max_cpu_seconds", 60)
-            resource.setrlimit(resource.RLIMIT_CPU, (max_cpu_time, max_cpu_time))
-
-            # Limit number of file descriptors
-            resource.setrlimit(resource.RLIMIT_NOFILE, (64, 128))
-
-        except (OSError, ValueError, AttributeError):
-            # Resource limits may fail on some systems, continue without them
-            pass
+        # Use the ResourceManager to set limits (handles platform differences)
+        setup_download_limits(max_memory_mb, max_cpu_seconds)
 
     def validate_url(self, url: str) -> bool:
         """Validate URL format and domain restrictions"""
