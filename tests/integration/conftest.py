@@ -209,8 +209,34 @@ def container_runtime_available(docker_available, podman_available):
 @pytest.fixture
 def mock_dangerzone_cli(temp_dir: Path):
     """Mock dangerzone-cli for cross-platform sanitization testing."""
+    import os
+    import shutil
     from unittest.mock import patch, MagicMock
     import platform
+
+    # Check if we should use real Dangerzone instead of mocking
+    if os.environ.get("DEFUSE_USE_REAL_DANGERZONE"):
+        # Try to find real dangerzone-cli
+        real_dangerzone = None
+
+        # Look for dangerzone-cli in common locations
+        possible_paths = [
+            "dangerzone-cli",  # In PATH
+            "C:\\Program Files\\Dangerzone\\dangerzone-cli.exe",  # Windows default
+            "/usr/local/bin/dangerzone-cli",  # macOS/Linux common
+            "/usr/bin/dangerzone-cli",  # Linux common
+        ]
+
+        for path_candidate in possible_paths:
+            if shutil.which(path_candidate) or Path(path_candidate).exists():
+                real_dangerzone = Path(path_candidate)
+                print(f"✅ Using REAL Dangerzone at: {real_dangerzone}")
+                yield real_dangerzone
+                return
+
+        print(
+            "⚠️ DEFUSE_USE_REAL_DANGERZONE set but Dangerzone not found, falling back to mock"
+        )
 
     dangerzone_path = temp_dir / "mock-dangerzone-cli"
 

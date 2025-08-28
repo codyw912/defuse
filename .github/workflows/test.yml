@@ -58,6 +58,71 @@ jobs:
       run: |
         uv run pytest tests/unit/ -v --tb=short
 
+    - name: Cache Dangerzone MSI
+      if: runner.os == 'Windows'
+      uses: actions/cache@v4
+      id: cache-dangerzone
+      with:
+        path: |
+          Dangerzone-0.9.1.msi
+          C:\Program Files\Dangerzone\
+        key: dangerzone-0.9.1-${{ runner.os }}
+        restore-keys: |
+          dangerzone-0.9.1-
+
+    - name: Download Dangerzone MSI
+      if: runner.os == 'Windows' && steps.cache-dangerzone.outputs.cache-hit != 'true'
+      shell: powershell
+      run: |
+        Write-Output "Downloading Dangerzone MSI..."
+        $url = "https://github.com/freedomofpress/dangerzone/releases/download/v0.9.1/Dangerzone-0.9.1.msi"
+        $msiPath = "Dangerzone-0.9.1.msi"
+        try {
+          Invoke-WebRequest -Uri $url -OutFile $msiPath -UseBasicParsing
+          Write-Output "Downloaded Dangerzone MSI successfully"
+        } catch {
+          Write-Error "Failed to download Dangerzone MSI: $_"
+          exit 1
+        }
+
+    - name: Install Dangerzone
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        # Check if already installed (from cache)
+        $dangerzoneExe = "C:\Program Files\Dangerzone\dangerzone-cli.exe"
+        if (Test-Path $dangerzoneExe) {
+          Write-Output "Dangerzone already installed (from cache)"
+          & $dangerzoneExe --version
+          exit 0
+        }
+
+        Write-Output "Installing Dangerzone..."
+        $msiPath = "Dangerzone-0.9.1.msi"
+        $logPath = "dangerzone-install.log"
+        
+        # Install silently with logging
+        $proc = Start-Process "msiexec.exe" -ArgumentList "/i", "`"$msiPath`"", "/qn", "/l*!", "`"$logPath`"" -NoNewWindow -PassThru -Wait
+        
+        # Check installation result
+        if ($proc.ExitCode -ne 0) {
+          Write-Error "Dangerzone installation failed with exit code: $($proc.ExitCode)"
+          if (Test-Path $logPath) {
+            Write-Output "Installation log:"
+            Get-Content $logPath
+          }
+          exit $proc.ExitCode
+        }
+        
+        # Verify installation
+        if (Test-Path $dangerzoneExe) {
+          Write-Output "Dangerzone installed successfully"
+          & $dangerzoneExe --version
+        } else {
+          Write-Error "Dangerzone installation completed but executable not found"
+          exit 1
+        }
+
     - name: Run platform-specific integration tests
       run: |
         # Linux: Test all sandbox backends and cross-platform functionality
@@ -71,9 +136,17 @@ jobs:
         
         # Windows: Test Docker Desktop integration and Windows-specific functionality
         if [ "$RUNNER_OS" == "Windows" ]; then
-          uv run pytest tests/integration/ -v --tb=short -m "not slow" || echo "Integration tests skipped on Windows"
-          # Test Windows-specific paths and Docker
-          uv run pytest tests/test_windows_integration.py -v --tb=short || echo "Windows-specific tests skipped"
+          # Check if Dangerzone is installed for real integration testing
+          if command -v "C:\Program Files\Dangerzone\dangerzone-cli.exe" >/dev/null 2>&1; then
+            echo "🎉 Running Windows tests with REAL Dangerzone installation"
+            export DEFUSE_USE_REAL_DANGERZONE=1
+          else
+            echo "ℹ️ Running Windows tests with mocked Dangerzone"
+          fi
+          
+          uv run pytest tests/integration/ -v --tb=short -m "not slow"
+          # Test Windows-specific paths and Docker  
+          uv run pytest tests/test_windows_integration.py -v --tb=short
           # Test cross-platform functionality
           uv run pytest tests/test_sanitizer_integration.py tests/test_downloader_cross_platform.py tests/test_cli_cross_platform.py -v --tb=short -m "not linux and not macos"
         fi
