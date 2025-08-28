@@ -182,16 +182,24 @@ import io
 import os
 import tempfile
 import urllib.parse
-import resource
 import signal
 from pathlib import Path
 import requests
+
+# Resource module should be available in containers (Linux-based)
+try:
+    import resource
+    HAS_RESOURCE = True
+except ImportError:
+    HAS_RESOURCE = False
 
 class ContainerDownloadError(Exception):
     pass
 
 def setup_resource_limits():
     """Set up resource limits for the download process"""
+    if not HAS_RESOURCE:
+        return
     try:
         # Limit virtual memory
         max_memory = {self.config.sandbox.max_memory_mb} * 1024 * 1024
