@@ -229,7 +229,13 @@ def mock_dangerzone_cli(temp_dir: Path):
         ]
 
         for path_candidate in possible_paths:
-            if shutil.which(path_candidate) or Path(path_candidate).exists():
+            resolved_path = shutil.which(path_candidate)
+            if resolved_path:
+                real_dangerzone = Path(resolved_path)
+                print(f"✅ Using REAL Dangerzone at: {real_dangerzone}")
+                yield real_dangerzone
+                return
+            elif Path(path_candidate).exists():
                 real_dangerzone = Path(path_candidate)
                 print(f"✅ Using REAL Dangerzone at: {real_dangerzone}")
                 yield real_dangerzone
