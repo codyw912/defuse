@@ -94,14 +94,30 @@ jobs:
     - name: Install Dangerzone (Linux)
       if: runner.os == 'Linux'
       run: |
-        echo "Installing Dangerzone via PPA..."
-        sudo add-apt-repository -y ppa:freedomofpress/dangerzone
+        echo "Installing Dangerzone from Freedom of Press APT repo..."
+        
+        # Download and add GPG key
+        sudo apt-get update && sudo apt-get install -y gpg ca-certificates
+        sudo mkdir -p /etc/apt/keyrings
+        sudo gpg --keyserver hkps://keys.openpgp.org \
+            --no-default-keyring --no-permission-warning --homedir $(mktemp -d) \
+            --keyring gnupg-ring:/etc/apt/keyrings/fpf-apt-tools-archive-keyring.gpg \
+            --recv-keys DE28AB241FA48260FAC9B8BAA7C9B38522604281
+        sudo chmod +r /etc/apt/keyrings/fpf-apt-tools-archive-keyring.gpg
+        
+        # Add APT repository
+        . /etc/os-release
+        echo "deb [signed-by=/etc/apt/keyrings/fpf-apt-tools-archive-keyring.gpg] \
+            https://packages.freedom.press/apt-tools-prod ${VERSION_CODENAME} main" \
+            | sudo tee /etc/apt/sources.list.d/fpf-apt-tools.list
+        
+        # Install Dangerzone
         sudo apt-get update
         sudo apt-get install -y dangerzone
         
         # Verify installation
         if command -v dangerzone-cli >/dev/null 2>&1; then
-          echo "Dangerzone installed successfully"
+          echo "✅ Dangerzone installed successfully"
           dangerzone-cli --version
           export DEFUSE_USE_REAL_DANGERZONE=1
         else
