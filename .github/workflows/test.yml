@@ -12,12 +12,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-13]  # macos-13 is Intel, supports Docker
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Set up Docker
+      if: runner.os != 'Linux'
+      uses: docker/setup-docker-action@v3
+      with:
+        version: v27.3.1
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -38,12 +44,12 @@ jobs:
         # Note: These tools may have restrictions in GitHub Actions
         # Docker is the preferred backend in CI
 
-    - name: Check Docker availability
+    - name: Verify Docker availability
       run: |
         echo "Docker version:"
-        docker --version || echo "Docker not available"
+        docker --version
         echo "Docker info:"
-        docker info || echo "Docker daemon not running"
+        docker info
 
     - name: Install dependencies
       run: |
