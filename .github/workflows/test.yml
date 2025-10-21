@@ -94,7 +94,8 @@ jobs:
     - name: Install Dangerzone (Linux)
       if: runner.os == 'Linux'
       run: |
-        echo "Installing Dangerzone via apt..."
+        echo "Installing Dangerzone via PPA..."
+        sudo add-apt-repository -y ppa:freedomofpress/dangerzone
         sudo apt-get update
         sudo apt-get install -y dangerzone
         
