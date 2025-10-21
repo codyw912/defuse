@@ -116,9 +116,19 @@ jobs:
         sudo apt-get install -y dangerzone
         
         # Verify installation
+        echo "Checking for Dangerzone binaries..."
+        which dangerzone || echo "dangerzone not in PATH"
+        which dangerzone-cli || echo "dangerzone-cli not in PATH"
+        ls -la /usr/bin/dangerzone* || echo "No dangerzone binaries in /usr/bin"
+        dpkg -L dangerzone | grep bin || echo "No bin files in package"
+        
         if command -v dangerzone-cli >/dev/null 2>&1; then
-          echo "✅ Dangerzone installed successfully"
+          echo "✅ Dangerzone CLI found"
           dangerzone-cli --version
+          export DEFUSE_USE_REAL_DANGERZONE=1
+        elif command -v dangerzone >/dev/null 2>&1; then
+          echo "✅ Dangerzone found (using dangerzone instead of dangerzone-cli)"
+          dangerzone --version
           export DEFUSE_USE_REAL_DANGERZONE=1
         else
           echo "⚠️ Dangerzone installation failed, will use mocked tests"
