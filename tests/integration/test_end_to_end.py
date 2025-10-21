@@ -337,6 +337,12 @@ class TestWorkflowResourceManagement:
         mock_sandbox_capabilities,
     ):
         """Test that temporary files are properly cleaned up."""
+        import os
+
+        # Skip if using real Dangerzone (mock PDF too simple for real sanitization)
+        if os.environ.get("DEFUSE_USE_REAL_DANGERZONE"):
+            pytest.skip("Test uses mock PDF incompatible with real Dangerzone")
+
         integration_config.sanitizer.keep_temp_files = False
 
         with patch.object(SandboxedDownloader, "run_docker_download") as mock_download:
@@ -457,6 +463,12 @@ class TestWorkflowErrorRecovery:
         mock_sandbox_capabilities,
     ):
         """Test batch processing with partial failures."""
+        import os
+
+        # Skip if using real Dangerzone (mock PDFs too simple)
+        if os.environ.get("DEFUSE_USE_REAL_DANGERZONE"):
+            pytest.skip("Test uses mock PDFs incompatible with real Dangerzone")
+
         # Mix of successful and failed URLs
         urls_and_responses = [
             ("http://example.com/good1.pdf", 200, b"%PDF-1.7\nGood PDF 1\n%%EOF"),

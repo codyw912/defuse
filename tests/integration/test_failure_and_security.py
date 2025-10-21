@@ -391,6 +391,12 @@ class TestMaliciousInputHandling:
         mock_sandbox_capabilities,
     ):
         """Test handling of potentially malicious PDF content."""
+        import os
+
+        # Skip if using real Dangerzone (mock PDF too simple)
+        if os.environ.get("DEFUSE_USE_REAL_DANGERZONE"):
+            pytest.skip("Test uses mock PDF incompatible with real Dangerzone")
+
         # Mock malicious PDF with JavaScript
         malicious_pdf = b"""%PDF-1.7
 1 0 obj
