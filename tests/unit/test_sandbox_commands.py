@@ -16,9 +16,13 @@ from defuse.config import Config
 class TestFirejailCommandConstruction:
     """Test Firejail command building logic"""
 
+    @patch("shutil.which")
     @patch("subprocess.run")
-    def test_firejail_command_has_required_flags(self, mock_run):
+    def test_firejail_command_has_required_flags(self, mock_run, mock_which):
         """Verify Firejail command includes all security flags"""
+        mock_which.side_effect = (
+            lambda x: "/usr/bin/" + x if x in ["docker", "firejail"] else None
+        )
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -49,9 +53,13 @@ class TestFirejailCommandConstruction:
             assert any("--rlimit-nofile" in str(arg) for arg in call_args)
             assert any("--timeout" in str(arg) for arg in call_args)
 
+    @patch("shutil.which")
     @patch("subprocess.run")
-    def test_firejail_bind_mount_syntax(self, mock_run):
+    def test_firejail_bind_mount_syntax(self, mock_run, mock_which):
         """Verify Firejail uses correct bind mount syntax"""
+        mock_which.side_effect = (
+            lambda x: "/usr/bin/" + x if x in ["docker", "firejail"] else None
+        )
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -75,9 +83,13 @@ class TestFirejailCommandConstruction:
 class TestBubblewrapCommandConstruction:
     """Test Bubblewrap command building logic"""
 
+    @patch("shutil.which")
     @patch("subprocess.run")
-    def test_bubblewrap_command_has_isolation_flags(self, mock_run):
+    def test_bubblewrap_command_has_isolation_flags(self, mock_run, mock_which):
         """Verify Bubblewrap command includes isolation flags"""
+        mock_which.side_effect = (
+            lambda x: "/usr/bin/" + x if x in ["docker", "bwrap"] else None
+        )
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -109,9 +121,11 @@ class TestBubblewrapCommandConstruction:
 class TestDockerCommandConstruction:
     """Test Docker command building logic"""
 
+    @patch("shutil.which")
     @patch("subprocess.run")
-    def test_docker_command_has_security_options(self, mock_run):
+    def test_docker_command_has_security_options(self, mock_run, mock_which):
         """Verify Docker command includes all security options"""
+        mock_which.return_value = "/usr/bin/docker"
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -145,9 +159,11 @@ class TestDockerCommandConstruction:
             assert memory_found, "Should have memory limit"
             assert cpu_found, "Should have CPU limit"
 
+    @patch("shutil.which")
     @patch("subprocess.run")
-    def test_docker_tmpfs_mount_options(self, mock_run):
+    def test_docker_tmpfs_mount_options(self, mock_run, mock_which):
         """Verify Docker tmpfs has noexec,nosuid flags"""
+        mock_which.return_value = "/usr/bin/docker"
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -172,9 +188,11 @@ class TestDockerCommandConstruction:
             assert "noexec" in tmpfs_arg, "tmpfs should have noexec"
             assert "nosuid" in tmpfs_arg, "tmpfs should have nosuid"
 
+    @patch("shutil.which")
     @patch("subprocess.run")
-    def test_docker_volume_mount_for_output(self, mock_run):
+    def test_docker_volume_mount_for_output(self, mock_run, mock_which):
         """Verify Docker mounts output directory correctly"""
+        mock_which.return_value = "/usr/bin/docker"
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -204,9 +222,13 @@ class TestDockerCommandConstruction:
 class TestPodmanCommandConstruction:
     """Test Podman command building logic"""
 
+    @patch("shutil.which")
     @patch("subprocess.run")
-    def test_podman_command_structure(self, mock_run):
+    def test_podman_command_structure(self, mock_run, mock_which):
         """Verify Podman command is similar to Docker with differences"""
+        mock_which.side_effect = (
+            lambda x: "/usr/bin/" + x if x in ["docker", "podman"] else None
+        )
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -233,9 +255,11 @@ class TestPodmanCommandConstruction:
 class TestSandboxCommandURLHandling:
     """Test that URLs are properly passed to sandbox commands"""
 
+    @patch("shutil.which")
     @patch("subprocess.run")
-    def test_url_is_embedded_in_command(self, mock_run):
+    def test_url_is_embedded_in_command(self, mock_run, mock_which):
         """Verify test URL appears in Docker command"""
+        mock_which.return_value = "/usr/bin/docker"
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -325,9 +349,11 @@ class TestSandboxCommandErrorHandling:
 class TestConfigLimitsInCommands:
     """Test that config limits are properly applied in commands"""
 
+    @patch("shutil.which")
     @patch("subprocess.run")
-    def test_custom_memory_limit_in_docker_command(self, mock_run):
+    def test_custom_memory_limit_in_docker_command(self, mock_run, mock_which):
         """Custom memory limit should appear in Docker command"""
+        mock_which.return_value = "/usr/bin/docker"
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -354,9 +380,13 @@ class TestConfigLimitsInCommands:
                 f"Should use custom 256MB limit, got {memory_arg}"
             )
 
+    @patch("shutil.which")
     @patch("subprocess.run")
-    def test_custom_file_size_limit_in_firejail(self, mock_run):
+    def test_custom_file_size_limit_in_firejail(self, mock_run, mock_which):
         """Custom file size limit should appear in Firejail command"""
+        mock_which.side_effect = (
+            lambda x: "/usr/bin/" + x if x in ["docker", "firejail"] else None
+        )
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
