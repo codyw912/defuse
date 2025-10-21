@@ -26,6 +26,7 @@ from defuse.resources import (
 )
 
 
+@pytest.mark.security
 class TestMemoryLimits:
     """Test memory limit enforcement."""
 
@@ -92,6 +93,7 @@ class TestMemoryLimits:
         assert isinstance(result, bool)
 
 
+@pytest.mark.security
 class TestCPULimits:
     """Test CPU time limit enforcement."""
 
@@ -134,6 +136,7 @@ class TestCPULimits:
             assert downloader.config.max_cpu_seconds == 60
 
 
+@pytest.mark.security
 class TestFileDescriptorLimits:
     """Test file descriptor limit enforcement."""
 
@@ -158,6 +161,7 @@ class TestFileDescriptorLimits:
         assert info.fd_limit[0] == 64
 
 
+@pytest.mark.security
 class TestFileSizeLimits:
     """Test file size limit enforcement during download."""
 
@@ -235,6 +239,7 @@ class TestFileSizeLimits:
                 assert len(content) == len(sample_pdf_data)
 
 
+@pytest.mark.security
 class TestTimeoutEnforcement:
     """Test download timeout enforcement."""
 
@@ -281,6 +286,7 @@ class TestTimeoutEnforcement:
                 downloader.download_to_memory("https://example.com/file.pdf")
 
 
+@pytest.mark.security
 class TestSpooledTemporaryFile:
     """Test SpooledTemporaryFile behavior (memory→disk spillover)."""
 
@@ -373,6 +379,7 @@ class TestSpooledTemporaryFile:
         # Should default to 10MB in the actual code
 
 
+@pytest.mark.security
 class TestResourceLimitIntegration:
     """Test integration of multiple resource limits."""
 
@@ -416,6 +423,7 @@ class TestResourceLimitIntegration:
                 downloader.download_to_memory("https://evil.com/huge.pdf")
 
 
+@pytest.mark.security
 class TestResourceInfoRetrieval:
     """Test resource limit information retrieval."""
 
@@ -445,6 +453,7 @@ class TestResourceInfoRetrieval:
         assert info.fd_limit is None
 
 
+@pytest.mark.security
 class TestPlatformCompatibility:
     """Test that resource limits work correctly across platforms."""
 
@@ -486,6 +495,7 @@ class TestPlatformCompatibility:
         assert result is False
 
 
+@pytest.mark.security
 class TestSecurityDocumentation:
     """Test that security expectations for resource limits are met."""
 

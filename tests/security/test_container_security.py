@@ -25,6 +25,7 @@ from defuse.sandbox import (
 )
 
 
+@pytest.mark.security
 class TestContainerSecurityOptions:
     """Test that containers are launched with proper security options."""
 
@@ -130,6 +131,7 @@ class TestContainerSecurityOptions:
             assert "--read-only" in cmd
 
 
+@pytest.mark.security
 class TestContainerResourceLimits:
     """Test that containers enforce resource limits."""
 
@@ -219,6 +221,7 @@ class TestContainerResourceLimits:
             assert cmd[cpu_index + 1] == "0.5"
 
 
+@pytest.mark.security
 class TestContainerNetworkIsolation:
     """Test container network isolation settings."""
 
@@ -263,6 +266,7 @@ class TestContainerNetworkIsolation:
             assert cmd[network_index + 1] == "bridge"
 
 
+@pytest.mark.security
 class TestContainerCleanup:
     """Test that containers are properly cleaned up."""
 
@@ -303,6 +307,7 @@ class TestContainerCleanup:
             assert "--rm" in cmd
 
 
+@pytest.mark.security
 class TestFirejailSandboxing:
     """Test Firejail sandbox security options."""
 
@@ -401,6 +406,7 @@ class TestFirejailSandboxing:
             assert any("--rlimit-nproc" in arg for arg in cmd)
 
 
+@pytest.mark.security
 class TestBubblewrapSandboxing:
     """Test Bubblewrap sandbox security options."""
 
@@ -474,6 +480,7 @@ class TestBubblewrapSandboxing:
             assert "--unshare-pid" in cmd
 
 
+@pytest.mark.security
 class TestSandboxCapabilities:
     """Test sandbox capability detection."""
 
@@ -561,6 +568,7 @@ class TestSandboxCapabilities:
             assert max_level == IsolationLevel.STRICT
 
 
+@pytest.mark.security
 class TestContainerTimeouts:
     """Test that containers enforce timeouts to prevent indefinite execution."""
 
@@ -618,6 +626,7 @@ class TestContainerTimeouts:
             assert result is False
 
 
+@pytest.mark.security
 class TestSecurityDocumentation:
     """Test that security expectations for containers are documented and met."""
 

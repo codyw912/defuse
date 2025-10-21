@@ -15,6 +15,7 @@ from defuse.downloader import SecureDocumentDownloader
 from defuse.config import SandboxConfig
 
 
+@pytest.mark.security
 class TestURLSchemeValidation:
     """Test that only HTTP/HTTPS schemes are allowed (SSRF prevention)."""
 
@@ -68,6 +69,7 @@ class TestURLSchemeValidation:
         assert downloader.validate_url(malicious_url) is False
 
 
+@pytest.mark.security
 class TestDomainAllowlist:
     """Test domain allowlist enforcement."""
 
@@ -122,6 +124,7 @@ class TestDomainAllowlist:
         assert downloader.validate_url("https://sub.example.com/file.pdf") is True
 
 
+@pytest.mark.security
 class TestURLEncodingAttacks:
     """Test protection against URL encoding-based attacks."""
 
@@ -157,6 +160,7 @@ class TestURLEncodingAttacks:
         assert downloader.validate_url(url) is True  # URL is structurally valid
 
 
+@pytest.mark.security
 class TestMalformedURLs:
     """Test handling of malformed and edge-case URLs."""
 
@@ -207,6 +211,7 @@ class TestMalformedURLs:
         assert downloader.validate_url("https://example.com/file.pdf#page=1") is True
 
 
+@pytest.mark.security
 class TestIPAddressURLs:
     """Test handling of IP address URLs (potential SSRF vector)."""
 
@@ -246,6 +251,7 @@ class TestIPAddressURLs:
         assert downloader.validate_url("https://8.8.8.8/file.pdf") is False
 
 
+@pytest.mark.security
 class TestExceptionHandling:
     """Test that URL validation handles exceptions gracefully."""
 
@@ -277,6 +283,7 @@ class TestExceptionHandling:
                 )
 
 
+@pytest.mark.security
 class TestSecurityDocumentation:
     """Test that security expectations are documented and met."""
 
