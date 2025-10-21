@@ -6,6 +6,7 @@ without requiring those platforms. CI validates actual platform execution.
 """
 
 import os
+import platform as platform_module
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
@@ -34,6 +35,10 @@ class TestConfigDirectoryLogic:
     @patch("platform.system")
     def test_linux_config_directory_logic(self, mock_system):
         """Test Linux config path generation"""
+        # Skip on Windows - Path() behavior is platform-dependent
+        if platform_module.system() == "Windows":
+            pytest.skip("Test validates Unix path behavior")
+
         mock_system.return_value = "Linux"
 
         with patch.dict(os.environ, {"HOME": "/home/testuser"}, clear=False):
@@ -43,6 +48,10 @@ class TestConfigDirectoryLogic:
     @patch("platform.system")
     def test_macos_config_directory_logic(self, mock_system):
         """Test macOS config path generation"""
+        # Skip on Windows - Path() behavior is platform-dependent
+        if platform_module.system() == "Windows":
+            pytest.skip("Test validates Unix path behavior")
+
         mock_system.return_value = "Darwin"
 
         with patch.dict(os.environ, {"HOME": "/Users/testuser"}, clear=False):
