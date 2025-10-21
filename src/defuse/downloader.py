@@ -53,10 +53,24 @@ class SecureDocumentDownloader:
 
             if self.config.allowed_domains:
                 domain = parsed.netloc.lower()
-                if not any(
-                    domain.endswith(allowed.lower())
-                    for allowed in self.config.allowed_domains
-                ):
+                # Remove port if present
+                domain = domain.split(":")[0]
+
+                # Check if domain matches allowlist
+                # Must be exact match OR subdomain (starts with subdomain.)
+                allowed = False
+                for allowed_domain in self.config.allowed_domains:
+                    allowed_domain = allowed_domain.lower()
+                    if domain == allowed_domain:
+                        # Exact match
+                        allowed = True
+                        break
+                    elif domain.endswith("." + allowed_domain):
+                        # Subdomain match (e.g., sub.example.com matches example.com)
+                        allowed = True
+                        break
+
+                if not allowed:
                     return False
 
             return True

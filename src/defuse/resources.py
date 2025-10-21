@@ -35,6 +35,7 @@ class ResourceManager:
     def __init__(self):
         self._resource_module = None
         self._supported = False
+        self.platform = platform.system().lower()
         self._initialize()
 
     def _initialize(self):

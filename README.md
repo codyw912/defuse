@@ -33,10 +33,36 @@ uv tool install .
 
 ## Prerequisites
 
-Defuse requires [Dangerzone](https://dangerzone.rocks) to be installed. Defuse will automatically detect Dangerzone in common installation locations on all platforms (PATH, app bundles, package managers, etc.):
+Defuse requires two components to be installed:
 
-### macOS
+### 1. Container Runtime (Required)
 
+Choose **one** of the following:
+
+**Docker** (Recommended - most widely tested):
+```bash
+# macOS/Windows: Download Docker Desktop from docker.com
+# Linux: Install via package manager
+sudo apt install docker.io  # Debian/Ubuntu
+sudo dnf install docker     # Fedora
+```
+
+**Podman** (Alternative, rootless option):
+```bash
+# Linux
+sudo apt install podman     # Debian/Ubuntu
+sudo dnf install podman     # Fedora
+# macOS: brew install podman
+```
+
+**Linux Experimental Options**:
+- Firejail or Bubblewrap (experimental, may not work in all environments)
+
+### 2. Dangerzone (Required)
+
+Defuse uses [Dangerzone](https://dangerzone.rocks) for document sanitization. Defuse will automatically detect Dangerzone in common installation locations on all platforms.
+
+**macOS**:
 ```bash
 # Option 1: Download from website
 # https://dangerzone.rocks
@@ -45,10 +71,15 @@ Defuse requires [Dangerzone](https://dangerzone.rocks) to be installed. Defuse w
 brew install --cask dangerzone
 ```
 
-### Linux
-
+**Linux**:
 ```bash
 # Use your package manager or download from:
+# https://dangerzone.rocks
+```
+
+**Windows**:
+```bash
+# Download installer from:
 # https://dangerzone.rocks
 ```
 
@@ -143,6 +174,63 @@ Defuse stores user configuration in:
 - macOS: `~/Library/Application Support/defuse/config.yaml`
 - Linux: `~/.config/defuse/config.yaml`
 - Windows: `%APPDATA%/defuse/config.yaml`
+
+## Troubleshooting
+
+### Docker/Podman Issues
+
+**"No suitable sandboxing backend available"**:
+- Ensure Docker or Podman is installed and running
+- Verify with: `docker info` or `podman info`
+- macOS/Windows: Make sure Docker Desktop is running
+- Linux: Add your user to docker group: `sudo usermod -aG docker $USER`
+
+**Container fails to start**:
+- Check Docker daemon is running: `docker ps`
+- Check disk space: Containers need space for downloads
+- Check permissions on output directory
+
+**Slow container startup**:
+- First run may be slow (downloading Python image)
+- Subsequent runs should be faster (image cached)
+- Consider using Firejail/Bubblewrap on Linux for faster startup
+
+### Dangerzone Issues
+
+**"Dangerzone CLI not found"**:
+- Run `defuse check-deps` to see detection status
+- Manually specify path: `defuse config --dangerzone-path /path/to/dangerzone-cli`
+- Reinstall Dangerzone from [dangerzone.rocks](https://dangerzone.rocks)
+
+**Dangerzone sanitization fails**:
+- Ensure Dangerzone works standalone: `dangerzone-cli --help`
+- Check Dangerzone container runtime is configured
+- Some document formats may not be supported
+
+### Download Issues
+
+**"URL validation failed"**:
+- Only HTTP/HTTPS URLs are supported
+- Check domain allowlist: `defuse config --list`
+- Add allowed domain: `defuse config --add-domain example.com`
+
+**"File too large"**:
+- Default limit is 100MB
+- Files are downloaded in containers with memory limits
+- Very large files may exceed resource constraints
+
+### Progress Reporting
+
+**No progress during download**:
+- Downloads run in isolated containers
+- Progress output from containers is currently limited
+- Check output directory for completed files
+
+### Getting Help
+
+- Report issues: <https://github.com/codyw912/defuse/issues>
+- Check logs in output directory
+- Run with `--verbose` flag for detailed output
 
 ## How Dangerzone Works
 

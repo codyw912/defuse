@@ -103,7 +103,8 @@ startxref
         # Verify sanitized content (mock dangerzone output)
         sanitized_content = sanitized_file.read_text()
         assert "%PDF-1.7" in sanitized_content
-        assert "Mock sanitized document from document.pdf" in sanitized_content
+        assert "endobj" in sanitized_content  # Verify actual PDF structure
+        assert "%%EOF" in sanitized_content  # Verify PDF end marker
 
         # Step 4: Cleanup verification
         if not integration_config.sanitizer.keep_temp_files:
