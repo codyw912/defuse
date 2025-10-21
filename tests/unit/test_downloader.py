@@ -629,6 +629,12 @@ class TestDownloadDirectToFile:
 
     def test_download_direct_size_exceeded_during_download_cleanup(self, temp_dir):
         """Test cleanup when size is exceeded during streaming"""
+        import platform
+
+        # Skip on Windows - file locking prevents immediate deletion
+        if platform.system() == "Windows":
+            pytest.skip("Windows file locking prevents immediate file deletion")
+
         max_size = 100
         config = SandboxConfig(temp_dir=temp_dir, max_file_size=max_size)
         downloader = SecureDocumentDownloader(config)
@@ -731,6 +737,12 @@ class TestSaveBufferToFile:
 
     def test_save_buffer_to_file_permission_error(self, temp_dir):
         """Test handling of permission errors when saving"""
+        import platform
+
+        # Skip on Windows - chmod doesn't work the same way
+        if platform.system() == "Windows":
+            pytest.skip("Windows permission model differs from Unix chmod")
+
         config = SandboxConfig(temp_dir=temp_dir)
         downloader = SecureDocumentDownloader(config)
 
