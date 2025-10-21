@@ -25,6 +25,73 @@ jobs:
       with:
         version: v27.3.1
 
+    - name: Ensure Docker ready on Windows
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        $ErrorActionPreference = "Stop"
+
+        $serviceNames = @("com.docker.service", "docker")
+        foreach ($name in $serviceNames) {
+          $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
+          if ($null -ne $svc) {
+            if ($svc.Status -ne 'Running') {
+              Write-Host "Starting Docker service '$name'..."
+              Start-Service -Name $name
+              $svc.WaitForStatus("Running", (New-TimeSpan -Minutes 2))
+            }
+          }
+        }
+
+        function Test-DockerReady {
+          docker info | Out-Null
+          return $LASTEXITCODE -eq 0
+        }
+
+        for ($i = 0; $i -lt 12; $i++) {
+          if (Test-DockerReady) {
+            break
+          }
+          Write-Host "Docker not ready yet... retrying in 5 seconds"
+          Start-Sleep -Seconds 5
+          if ($i -eq 11) {
+            throw "Docker daemon did not become ready in time"
+          }
+        }
+
+        $dockerCli = Join-Path $Env:ProgramFiles "Docker\Docker\DockerCli.exe"
+        if (Test-Path $dockerCli) {
+          $osType = docker info --format '{{.OSType}}'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to determine Docker engine type"
+          }
+          if ($osType -ne 'linux') {
+            Write-Host "Switching Docker engine to Linux (current: $osType)..."
+            & $dockerCli -SwitchLinuxEngine | Out-Null
+            Start-Sleep -Seconds 15
+            for ($i = 0; $i -lt 12; $i++) {
+              if (Test-DockerReady) {
+                break
+              }
+              Write-Host "Waiting for Docker after engine switch..."
+              Start-Sleep -Seconds 5
+              if ($i -eq 11) {
+                throw "Docker daemon did not restart correctly after switching engine"
+              }
+            }
+            $osType = docker info --format '{{.OSType}}'
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to determine Docker engine type after switch"
+            }
+          }
+          Write-Host "Docker engine type: $osType"
+          if ($osType -ne 'linux') {
+            throw "Docker engine must be running in Linux mode for Defuse tests"
+          }
+        } else {
+          Write-Warning "DockerCli.exe not found; assuming docker/setup-docker-action provisioned Linux mode"
+        }
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:

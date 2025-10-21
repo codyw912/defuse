@@ -5,6 +5,7 @@ Tests for Windows-specific functionality including Docker Desktop integration,
 Windows path handling, and Dangerzone detection.
 """
 
+import os
 import platform
 import tempfile
 from pathlib import Path
@@ -37,13 +38,55 @@ def windows_config():
     return config
 
 
+def get_windows_capabilities_or_skip(
+    require_docker: bool = False,
+) -> SandboxCapabilities:
+    """
+    Attempt to detect sandbox capabilities on Windows and skip the test if
+    no supported backend is available on the CI runner.
+    """
+    try:
+        capabilities = SandboxCapabilities()
+    except RuntimeError as exc:
+        if os.getenv("CI"):
+            pytest.fail(f"Sandbox capabilities unavailable in CI runner: {exc}")
+        pytest.skip(f"Sandbox capabilities unavailable on this runner: {exc}")
+
+    if require_docker and not capabilities.available_backends.get(
+        SandboxBackend.DOCKER, False
+    ):
+        if os.getenv("CI"):
+            pytest.fail("Docker backend not available in CI Windows runner")
+        pytest.skip("Docker backend not available on this Windows runner")
+
+    return capabilities
+
+
+def create_windows_downloader_or_skip(
+    config: Config, *, require_docker: bool = False
+) -> SandboxedDownloader:
+    """
+    Create a SandboxedDownloader for Windows tests, skipping when the required
+    sandbox backend is not available.
+    """
+    # Ensure capabilities are available (and optionally Docker) before creating downloader
+    get_windows_capabilities_or_skip(require_docker=require_docker)
+
+    try:
+        return SandboxedDownloader(config)
+    except RuntimeError as exc:
+        if os.getenv("CI"):
+            pytest.fail(f"Sandboxed downloader unavailable in CI runner: {exc}")
+        pytest.skip(f"Sandboxed downloader unavailable on this runner: {exc}")
+
+
 class TestWindowsSandboxDetection:
     """Test sandbox detection on Windows."""
 
     @pytest.mark.windows
     def test_windows_sandbox_backends(self):
         """Test which sandbox backends are available on Windows."""
-        caps = SandboxCapabilities()
+        caps = get_windows_capabilities_or_skip()
 
         # On Windows, only Docker should be available (via Docker Desktop)
         # Firejail and Bubblewrap should not be available
@@ -64,7 +107,7 @@ class TestWindowsSandboxDetection:
     @pytest.mark.windows
     def test_windows_platform_detection(self):
         """Test that platform is correctly detected as Windows."""
-        caps = SandboxCapabilities()
+        caps = get_windows_capabilities_or_skip()
         assert caps.platform == "windows"
 
 
@@ -128,7 +171,7 @@ class TestWindowsDockerIntegration:
     @pytest.mark.requires_docker
     def test_docker_desktop_availability(self):
         """Test Docker Desktop detection on Windows."""
-        caps = SandboxCapabilities()
+        caps = get_windows_capabilities_or_skip(require_docker=True)
 
         # If Docker Desktop is installed, it should be detected
         if caps.available_backends[SandboxBackend.DOCKER]:
@@ -140,10 +183,13 @@ class TestWindowsDockerIntegration:
     @pytest.mark.integration
     def test_windows_docker_download(self, windows_config):
         """Test Docker-based download on Windows."""
-        if not SandboxCapabilities().available_backends[SandboxBackend.DOCKER]:
+        caps = get_windows_capabilities_or_skip(require_docker=True)
+        if not caps.available_backends[SandboxBackend.DOCKER]:
             pytest.skip("Docker not available")
 
-        downloader = SandboxedDownloader(windows_config)
+        downloader = create_windows_downloader_or_skip(
+            windows_config, require_docker=True
+        )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "test.pdf"
@@ -169,7 +215,8 @@ class TestWindowsDockerIntegration:
     @responses.activate
     def test_windows_full_pipeline(self, windows_config):
         """Test full download/sandbox pipeline on Windows."""
-        if not SandboxCapabilities().available_backends[SandboxBackend.DOCKER]:
+        caps = get_windows_capabilities_or_skip(require_docker=True)
+        if not caps.available_backends[SandboxBackend.DOCKER]:
             pytest.skip("Docker not available")
 
         # Mock PDF content
@@ -180,7 +227,9 @@ class TestWindowsDockerIntegration:
             status=200,
         )
 
-        downloader = SandboxedDownloader(windows_config)
+        downloader = create_windows_downloader_or_skip(
+            windows_config, require_docker=True
+        )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "test.pdf"
@@ -206,7 +255,7 @@ class TestWindowsErrorHandling:
     @pytest.mark.windows
     def test_windows_path_errors(self, windows_config):
         """Test handling of Windows path errors."""
-        downloader = SandboxedDownloader(windows_config)
+        downloader = create_windows_downloader_or_skip(windows_config)
 
         # Test with invalid Windows path
         invalid_path = Path("Z:/nonexistent/invalid/path/test.pdf")
@@ -223,7 +272,7 @@ class TestWindowsErrorHandling:
     @pytest.mark.windows
     def test_windows_permission_errors(self, windows_config):
         """Test handling of Windows permission errors."""
-        downloader = SandboxedDownloader(windows_config)
+        downloader = create_windows_downloader_or_skip(windows_config)
 
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "test.pdf"
@@ -272,7 +321,7 @@ class TestWindowsSecurityReport:
     @pytest.mark.windows
     def test_windows_security_report(self, windows_config):
         """Test security report generation on Windows."""
-        downloader = SandboxedDownloader(windows_config)
+        downloader = create_windows_downloader_or_skip(windows_config)
         report = downloader.get_security_report()
 
         assert report["platform"] == "windows"
@@ -286,7 +335,7 @@ class TestWindowsSecurityReport:
     @pytest.mark.windows
     def test_windows_isolation_level(self, windows_config):
         """Test isolation level reporting on Windows."""
-        downloader = SandboxedDownloader(windows_config)
+        downloader = create_windows_downloader_or_skip(windows_config)
 
         # Windows isolation depends on Docker Desktop
         caps = downloader.capabilities

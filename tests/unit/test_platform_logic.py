@@ -19,6 +19,9 @@ from defuse.resources import ResourceManager
 class TestConfigDirectoryLogic:
     """Test config directory path generation for each platform"""
 
+    # Detect actual platform before any mocking
+    _actual_platform = platform_module.system()
+
     @patch("platform.system")
     def test_windows_config_directory_logic(self, mock_system):
         """Test Windows config path generation without Windows"""
@@ -36,7 +39,7 @@ class TestConfigDirectoryLogic:
     def test_linux_config_directory_logic(self, mock_system):
         """Test Linux config path generation"""
         # Skip on Windows - Path() behavior is platform-dependent
-        if platform_module.system() == "Windows":
+        if self._actual_platform == "Windows":
             pytest.skip("Test validates Unix path behavior")
 
         mock_system.return_value = "Linux"
@@ -49,7 +52,7 @@ class TestConfigDirectoryLogic:
     def test_macos_config_directory_logic(self, mock_system):
         """Test macOS config path generation"""
         # Skip on Windows - Path() behavior is platform-dependent
-        if platform_module.system() == "Windows":
+        if self._actual_platform == "Windows":
             pytest.skip("Test validates Unix path behavior")
 
         mock_system.return_value = "Darwin"
