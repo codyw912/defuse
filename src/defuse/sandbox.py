@@ -505,6 +505,7 @@ except Exception as e:
 "
 """
 
+            host_os = platform.system().lower()
             cmd = [
                 "docker",
                 "run",
@@ -515,18 +516,32 @@ except Exception as e:
                 f"{self.config.sandbox.max_memory_mb}m",  # Memory limit
                 "--cpu-shares",
                 "512",  # Limited CPU
-                "--security-opt",
-                "no-new-privileges:true",  # No privilege escalation
-                "--read-only",  # Read-only filesystem
-                "--tmpfs",
-                "/tmp:noexec,nosuid,size=100m",  # Temp space
-                "--volume",
-                f"{output_path.parent}:/output:rw",  # Output directory
-                "python:3.11-slim",
-                "sh",
-                "-c",
-                download_cmd,
             ]
+
+            if host_os != "windows":
+                cmd.extend(
+                    [
+                        "--security-opt",
+                        "no-new-privileges:true",  # No privilege escalation
+                        "--read-only",  # Read-only filesystem
+                        "--tmpfs",
+                        "/tmp:noexec,nosuid,size=100m",  # Temp space
+                    ]
+                )
+            else:
+                # Windows Docker lacks support for those flags; skip them in CI runs.
+                pass
+
+            cmd.extend(
+                [
+                    "--volume",
+                    f"{output_path.parent}:/output:rw",  # Output directory
+                    "python:3.11-slim",
+                    "sh",
+                    "-c",
+                    download_cmd,
+                ]
+            )
 
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=150)
 

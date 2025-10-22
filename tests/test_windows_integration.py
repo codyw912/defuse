@@ -133,7 +133,11 @@ class TestWindowsDangerzoneDetection:
                 result = find_dangerzone_cli()
 
                 # Should have checked Windows-specific paths
-                calls = [str(call[0][0]) for call in mock_exists.call_args_list]
+                calls = [
+                    str(call.args[0])
+                    for call in mock_exists.call_args_list
+                    if getattr(call, "args", ())
+                ]
 
                 # Verify Windows paths were checked
                 program_files_paths = [
