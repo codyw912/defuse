@@ -122,7 +122,8 @@ class TestFirejailSandbox:
                     # Verify Firejail security options
                     assert "firejail" in cmd_args
                     assert "--noprofile" in cmd_args
-                    assert "--net=none" in cmd_args
+                    # Network access is required for downloads
+                    assert "--net=none" not in cmd_args
                     assert "--seccomp" in cmd_args
                     assert "--noroot" in cmd_args
                     assert "--rlimit-fsize=104857600" in cmd_args  # 100MB
@@ -206,7 +207,8 @@ class TestBubblewrapSandbox:
                     assert "bwrap" in cmd_args
                     assert "--die-with-parent" in cmd_args
                     assert "--unshare-pid" in cmd_args
-                    assert "--unshare-net" in cmd_args
+                    # Network access is required for downloads
+                    assert "--unshare-net" not in cmd_args
                     assert "--tmpfs" in cmd_args
                     assert "/tmp" in cmd_args
 
@@ -237,7 +239,8 @@ class TestBubblewrapSandbox:
                     # Verify namespace isolation
                     cmd_args = mock_run.call_args[0][0]
                     assert "--unshare-pid" in cmd_args  # PID namespace
-                    assert "--unshare-net" in cmd_args  # Network namespace
+                    # Network access is required for downloads
+                    assert "--unshare-net" not in cmd_args
 
 
 class TestLinuxSandboxIntegration:
@@ -249,15 +252,11 @@ class TestLinuxSandboxIntegration:
         """Test that the correct sandbox backend is selected on Linux."""
         downloader = SandboxedDownloader(linux_config)
 
-        # Verify that Linux-specific backends are preferred
-        if downloader.capabilities.available_backends[SandboxBackend.FIREJAIL]:
-            assert (
-                downloader.capabilities.recommended_backend == SandboxBackend.FIREJAIL
-            )
-        elif downloader.capabilities.available_backends[SandboxBackend.BUBBLEWRAP]:
-            assert (
-                downloader.capabilities.recommended_backend == SandboxBackend.BUBBLEWRAP
-            )
+        # Verify that Docker is now the preferred backend
+        if downloader.capabilities.available_backends[SandboxBackend.DOCKER]:
+            assert downloader.capabilities.recommended_backend == SandboxBackend.DOCKER
+        elif downloader.capabilities.available_backends[SandboxBackend.PODMAN]:
+            assert downloader.capabilities.recommended_backend == SandboxBackend.PODMAN
 
     @pytest.mark.linux
     @pytest.mark.sandbox

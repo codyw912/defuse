@@ -299,7 +299,10 @@ class TestConfigIntegration:
         config = get_default_config()
 
         # Temp directory should be in system temp space
-        assert str(config.sandbox.temp_dir).startswith("/tmp")
+        temp_dir_str = str(config.sandbox.temp_dir)
+        # On Windows, paths use backslashes and may start with \tmp
+        # On Unix, paths use forward slashes and start with /tmp
+        assert temp_dir_str.endswith("pdf-sandbox") or "tmp" in temp_dir_str.lower()
 
         # Output should be in user's Downloads folder
         assert config.sanitizer.output_dir.name == "Downloads"

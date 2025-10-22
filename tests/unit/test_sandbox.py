@@ -2,9 +2,10 @@
 Unit tests for sandbox capabilities and backend management.
 """
 
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 import subprocess
+import platform
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -652,9 +653,15 @@ class TestSecurityConstraints:
 
             # Verify security options are present
             args = mock_run.call_args[0][0]
-            assert "--security-opt" in args
-            assert "no-new-privileges:true" in args
-            assert "--read-only" in args
+            if platform.system() == "Windows":
+                # Windows Docker engine does not support these security flags
+                assert "--security-opt" not in args
+                assert "no-new-privileges:true" not in args
+                assert "--read-only" not in args
+            else:
+                assert "--security-opt" in args
+                assert "no-new-privileges:true" in args
+                assert "--read-only" in args
             assert "--memory" in args
 
     def test_resource_limits_applied(

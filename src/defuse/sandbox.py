@@ -3,13 +3,14 @@ Platform-specific sandboxing and isolation strategies for secure document downlo
 """
 
 import os
+import platform
 import shutil
 import subprocess
-import platform
 import tempfile
-from pathlib import Path
-from typing import Optional, Dict, Any
+import time
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from .config import Config
 
@@ -67,17 +68,25 @@ class SandboxCapabilities:
         if not docker_path:
             return False
 
-        try:
-            result = subprocess.run(
-                [docker_path, "info"], capture_output=True, timeout=5
-            )
-            return result.returncode == 0
-        except (
-            subprocess.TimeoutExpired,
-            FileNotFoundError,
-            subprocess.CalledProcessError,
-        ):
-            return False
+        for attempt in range(3):
+            try:
+                result = subprocess.run(
+                    [docker_path, "info"], capture_output=True, timeout=5
+                )
+                if result.returncode == 0:
+                    return True
+            except (
+                subprocess.TimeoutExpired,
+                FileNotFoundError,
+                subprocess.CalledProcessError,
+            ):
+                pass
+
+            # Give the daemon a moment to finish starting up (common in CI runners)
+            if attempt < 2:
+                time.sleep(2)
+
+        return False
 
     def _check_podman_available(self) -> bool:
         """Check if Podman is available and running"""
@@ -85,38 +94,46 @@ class SandboxCapabilities:
         if not podman_path:
             return False
 
-        try:
-            result = subprocess.run(
-                [podman_path, "info"], capture_output=True, timeout=5
-            )
-            return result.returncode == 0
-        except (
-            subprocess.TimeoutExpired,
-            FileNotFoundError,
-            subprocess.CalledProcessError,
-        ):
-            return False
+        for attempt in range(3):
+            try:
+                result = subprocess.run(
+                    [podman_path, "info"], capture_output=True, timeout=5
+                )
+                if result.returncode == 0:
+                    return True
+            except (
+                subprocess.TimeoutExpired,
+                FileNotFoundError,
+                subprocess.CalledProcessError,
+            ):
+                pass
+
+            if attempt < 2:
+                time.sleep(2)
+
+        return False
 
     def _get_recommended_backend(self) -> SandboxBackend:
-        """Get recommended backend prioritizing security.
+        """Get recommended backend prioritizing compatibility and reliability.
 
-        Provides defense in depth with Dangerzone.
+        Docker is the default as it's most widely available and tested.
+        Firejail and Bubblewrap are experimental options.
         """
-        # Priority order: specialized Linux sandboxes > Podman > Docker
-        if self.available_backends.get(SandboxBackend.FIREJAIL, False):
+        # Priority order: Docker > Podman > experimental Linux sandboxes
+        if self.available_backends.get(SandboxBackend.DOCKER, False):
+            return SandboxBackend.DOCKER
+        elif self.available_backends.get(SandboxBackend.PODMAN, False):
+            return SandboxBackend.PODMAN
+        elif self.available_backends.get(SandboxBackend.FIREJAIL, False):
+            # Experimental - may not work in all environments
             return SandboxBackend.FIREJAIL
         elif self.available_backends.get(SandboxBackend.BUBBLEWRAP, False):
+            # Experimental - may not work in all environments
             return SandboxBackend.BUBBLEWRAP
-        elif self.available_backends.get(SandboxBackend.PODMAN, False):
-            return (
-                SandboxBackend.PODMAN
-            )  # Podman preferred over Docker on all platforms
-        elif self.available_backends.get(SandboxBackend.DOCKER, False):
-            return SandboxBackend.DOCKER
         else:
             raise RuntimeError(
                 "No suitable sandboxing backend available. "
-                "Docker/Podman is required (same as Dangerzone)."
+                "Docker or Podman is required for Defuse to function properly."
             )
 
     def get_max_isolation_level(self) -> IsolationLevel:
@@ -164,6 +181,15 @@ class SandboxedDownloader:
         if self.backend == SandboxBackend.AUTO:
             self.backend = self.capabilities.recommended_backend
 
+        # Warn about experimental backends
+        if self.backend in [SandboxBackend.FIREJAIL, SandboxBackend.BUBBLEWRAP]:
+            print(
+                f"Warning: {self.backend.value} is an experimental sandbox backend. "
+                "It may not work reliably in all environments "
+                "(especially CI/containers). "
+                "Consider using Docker or Podman for better compatibility."
+            )
+
     def create_download_script(self, url: str, output_path: Path) -> Path:
         """Create a temporary Python script for isolated download"""
         script_content = f'''
@@ -172,16 +198,24 @@ import io
 import os
 import tempfile
 import urllib.parse
-import resource
 import signal
 from pathlib import Path
 import requests
+
+# Resource module should be available in containers (Linux-based)
+try:
+    import resource
+    HAS_RESOURCE = True
+except ImportError:
+    HAS_RESOURCE = False
 
 class ContainerDownloadError(Exception):
     pass
 
 def setup_resource_limits():
     """Set up resource limits for the download process"""
+    if not HAS_RESOURCE:
+        return
     try:
         # Limit virtual memory
         max_memory = {self.config.sandbox.max_memory_mb} * 1024 * 1024
@@ -487,6 +521,7 @@ except Exception as e:
 "
 """
 
+            host_os = platform.system().lower()
             cmd = [
                 "docker",
                 "run",
@@ -497,18 +532,32 @@ except Exception as e:
                 f"{self.config.sandbox.max_memory_mb}m",  # Memory limit
                 "--cpu-shares",
                 "512",  # Limited CPU
-                "--security-opt",
-                "no-new-privileges:true",  # No privilege escalation
-                "--read-only",  # Read-only filesystem
-                "--tmpfs",
-                "/tmp:noexec,nosuid,size=100m",  # Temp space
-                "--volume",
-                f"{output_path.parent}:/output:rw",  # Output directory
-                "python:3.11-slim",
-                "sh",
-                "-c",
-                download_cmd,
             ]
+
+            if host_os != "windows":
+                cmd.extend(
+                    [
+                        "--security-opt",
+                        "no-new-privileges:true",  # No privilege escalation
+                        "--read-only",  # Read-only filesystem
+                        "--tmpfs",
+                        "/tmp:noexec,nosuid,size=100m",  # Temp space
+                    ]
+                )
+            else:
+                # Windows Docker lacks support for those flags; skip them in CI runs.
+                pass
+
+            cmd.extend(
+                [
+                    "--volume",
+                    f"{output_path.parent}:/output:rw",  # Output directory
+                    "python:3.11-slim",
+                    "sh",
+                    "-c",
+                    download_cmd,
+                ]
+            )
 
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=150)
 

@@ -6,6 +6,7 @@ gracefully and maintains security boundaries under stress conditions
 and malicious inputs.
 """
 
+import platform
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -17,6 +18,9 @@ import responses
 from defuse.sandbox import SandboxedDownloader
 from defuse.sanitizer import DocumentSanitizer
 from defuse.formats import FileTypeDetector
+
+
+IS_WINDOWS = platform.system() == "Windows"
 
 
 @pytest.mark.integration
@@ -291,10 +295,13 @@ class TestSecurityConstraints:
             docker_cmd = mock_run.call_args[0][0] if mock_run.call_args else []
 
             if docker_cmd:
-                assert "--security-opt" in docker_cmd
-                security_idx = docker_cmd.index("--security-opt") + 1
-                assert security_idx < len(docker_cmd)
-                assert "no-new-privileges:true" in docker_cmd[security_idx]
+                if IS_WINDOWS:
+                    assert "--security-opt" not in docker_cmd
+                else:
+                    assert "--security-opt" in docker_cmd
+                    security_idx = docker_cmd.index("--security-opt") + 1
+                    assert security_idx < len(docker_cmd)
+                    assert "no-new-privileges:true" in docker_cmd[security_idx]
 
     def test_network_isolation_enforcement(
         self, integration_config, temp_dir, mock_sandbox_capabilities
@@ -340,7 +347,10 @@ class TestSecurityConstraints:
             docker_cmd = mock_run.call_args[0][0] if mock_run.call_args else []
 
             if docker_cmd:
-                assert "--read-only" in docker_cmd
+                if IS_WINDOWS:
+                    assert "--read-only" not in docker_cmd
+                else:
+                    assert "--read-only" in docker_cmd
                 # Should have volume mount for output only
                 assert "-v" in docker_cmd or "--volume" in docker_cmd
 
@@ -391,6 +401,12 @@ class TestMaliciousInputHandling:
         mock_sandbox_capabilities,
     ):
         """Test handling of potentially malicious PDF content."""
+        import os
+
+        # Skip if using real Dangerzone (mock PDF too simple)
+        if os.environ.get("DEFUSE_USE_REAL_DANGERZONE"):
+            pytest.skip("Test uses mock PDF incompatible with real Dangerzone")
+
         # Mock malicious PDF with JavaScript
         malicious_pdf = b"""%PDF-1.7
 1 0 obj
@@ -578,22 +594,38 @@ class TestStressAndReliability:
 
         downloader = SandboxedDownloader(integration_config)
 
+        # Note: Since Docker is now the default backend, we ensure it's used
+        # by mocking other backends to fail. In CI, Docker is available.
+
         # Run for a short time in tests (would be longer in real scenarios)
         while time.time() - start_time < 2.0 and operations < 20:
-            with patch.object(downloader, "run_docker_download") as mock_download:
-                output_file = temp_dir / f"stability_{operations}.pdf"
-                output_file.write_bytes(f"Stability test {operations}".encode())
-                mock_download.return_value = True
+            # Mock all sandbox methods to ensure Docker is used (now the default)
+            with patch.object(downloader, "run_docker_download") as mock_docker:
+                with patch.object(
+                    downloader, "run_firejail_download", return_value=False
+                ):
+                    with patch.object(
+                        downloader, "run_bubblewrap_download", return_value=False
+                    ):
+                        with patch.object(
+                            downloader, "run_podman_download", return_value=False
+                        ):
+                            output_file = temp_dir / f"stability_{operations}.pdf"
+                            output_file.write_bytes(
+                                f"Stability test {operations}".encode()
+                            )
+                            mock_docker.return_value = True
 
-                result = downloader.sandboxed_download(
-                    f"http://example.com/stability_{operations}.pdf", output_file
-                )
+                            result = downloader.sandboxed_download(
+                                f"http://example.com/stability_{operations}.pdf",
+                                output_file,
+                            )
 
-                assert result == output_file
-                operations += 1
+                            assert result == output_file
+                            operations += 1
 
-                # Brief pause to simulate realistic usage
-                time.sleep(0.1)
+                            # Brief pause to simulate realistic usage
+                            time.sleep(0.1)
 
         # Should complete many operations successfully
         assert operations >= 10

@@ -12,12 +12,105 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-13]  # macos-13 is Intel, supports Docker
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Set up Docker
+      if: runner.os != 'Linux'
+      uses: docker/setup-docker-action@v3
+      with:
+        version: v27.3.1
+
+    - name: Ensure Docker ready on Windows
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        $ErrorActionPreference = "Stop"
+
+        $serviceNames = @("com.docker.service", "docker")
+        foreach ($name in $serviceNames) {
+          $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
+          if ($null -ne $svc) {
+            if ($svc.Status -ne 'Running') {
+              Write-Host "Starting Docker service '$name'..."
+              Start-Service -Name $name
+              $svc.WaitForStatus("Running", (New-TimeSpan -Minutes 2))
+            }
+          }
+        }
+
+        function Test-DockerReady {
+          docker info | Out-Null
+          return $LASTEXITCODE -eq 0
+        }
+
+        for ($i = 0; $i -lt 12; $i++) {
+          if (Test-DockerReady) {
+            break
+          }
+          Write-Host "Docker not ready yet... retrying in 5 seconds"
+          Start-Sleep -Seconds 5
+          if ($i -eq 11) {
+            throw "Docker daemon did not become ready in time"
+          }
+        }
+
+        $dockerCli = Join-Path $Env:ProgramFiles "Docker\Docker\DockerCli.exe"
+        if (Test-Path $dockerCli) {
+          $osType = docker info --format '{{.OSType}}'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to determine Docker engine type"
+          }
+          if ($osType -ne 'linux') {
+            Write-Host "Switching Docker engine to Linux (current: $osType)..."
+            & $dockerCli -SwitchLinuxEngine | Out-Null
+            Start-Sleep -Seconds 15
+            for ($i = 0; $i -lt 12; $i++) {
+              if (Test-DockerReady) {
+                break
+              }
+              Write-Host "Waiting for Docker after engine switch..."
+              Start-Sleep -Seconds 5
+              if ($i -eq 11) {
+                throw "Docker daemon did not restart correctly after switching engine"
+              }
+            }
+            $osType = docker info --format '{{.OSType}}'
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to determine Docker engine type after switch"
+            }
+          }
+          Write-Host "Docker engine type: $osType"
+          if ($osType -ne 'linux') {
+            throw "Docker engine must be running in Linux mode for Defuse tests"
+          }
+        } else {
+          Write-Warning "DockerCli.exe not found; assuming docker/setup-docker-action provisioned Linux mode"
+        }
+
+    - name: Ensure Docker ready on macOS
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        for attempt in $(seq 1 12); do
+          if docker info > /dev/null 2>&1; then
+            echo "Docker daemon is ready"
+            exit 0
+          fi
+
+          echo "Docker not ready yet (attempt ${attempt}/12); waiting 5s..."
+          sleep 5
+        done
+
+        echo "Docker daemon did not become ready in time"
+        docker info
+        exit 1
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -38,12 +131,12 @@ jobs:
         # Note: These tools may have restrictions in GitHub Actions
         # Docker is the preferred backend in CI
 
-    - name: Check Docker availability
+    - name: Verify Docker availability
       run: |
         echo "Docker version:"
-        docker --version || echo "Docker not available"
+        docker --version
         echo "Docker info:"
-        docker info || echo "Docker daemon not running"
+        docker info
 
     - name: Install dependencies
       run: |
@@ -58,10 +151,145 @@ jobs:
       run: |
         uv run pytest tests/unit/ -v --tb=short
 
+    - name: Cache Dangerzone MSI
+      if: runner.os == 'Windows'
+      uses: actions/cache@v4
+      id: cache-dangerzone
+      with:
+        path: |
+          Dangerzone-0.9.1.msi
+          C:\Program Files\Dangerzone\
+        key: dangerzone-0.9.1-${{ runner.os }}
+        restore-keys: |
+          dangerzone-0.9.1-
+
+    - name: Download Dangerzone MSI
+      if: runner.os == 'Windows' && steps.cache-dangerzone.outputs.cache-hit != 'true'
+      shell: powershell
+      run: |
+        Write-Output "Downloading Dangerzone MSI..."
+        $url = "https://github.com/freedomofpress/dangerzone/releases/download/v0.9.1/Dangerzone-0.9.1.msi"
+        $msiPath = "Dangerzone-0.9.1.msi"
+        try {
+          Invoke-WebRequest -Uri $url -OutFile $msiPath -UseBasicParsing
+          Write-Output "Downloaded Dangerzone MSI successfully"
+        } catch {
+          Write-Error "Failed to download Dangerzone MSI: $_"
+          exit 1
+        }
+
+    - name: Install Dangerzone (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        echo "Installing Dangerzone from Freedom of Press APT repo..."
+        
+        # Download and add GPG key
+        sudo apt-get update && sudo apt-get install -y gpg ca-certificates
+        sudo mkdir -p /etc/apt/keyrings
+        sudo gpg --keyserver hkps://keys.openpgp.org \
+            --no-default-keyring --no-permission-warning --homedir $(mktemp -d) \
+            --keyring gnupg-ring:/etc/apt/keyrings/fpf-apt-tools-archive-keyring.gpg \
+            --recv-keys DE28AB241FA48260FAC9B8BAA7C9B38522604281
+        sudo chmod +r /etc/apt/keyrings/fpf-apt-tools-archive-keyring.gpg
+        
+        # Add APT repository
+        . /etc/os-release
+        echo "deb [signed-by=/etc/apt/keyrings/fpf-apt-tools-archive-keyring.gpg] \
+            https://packages.freedom.press/apt-tools-prod ${VERSION_CODENAME} main" \
+            | sudo tee /etc/apt/sources.list.d/fpf-apt-tools.list
+        
+        # Install Dangerzone
+        sudo apt-get update
+        sudo apt-get install -y dangerzone
+        
+        # Verify installation
+        echo "Checking for Dangerzone binaries..."
+        which dangerzone || echo "dangerzone not in PATH"
+        which dangerzone-cli || echo "dangerzone-cli not in PATH"
+        ls -la /usr/bin/dangerzone* || echo "No dangerzone binaries in /usr/bin"
+        dpkg -L dangerzone | grep bin || echo "No bin files in package"
+        
+        if command -v dangerzone-cli >/dev/null 2>&1; then
+          echo "✅ Dangerzone CLI found"
+          dangerzone-cli --version
+          export DEFUSE_USE_REAL_DANGERZONE=1
+        elif command -v dangerzone >/dev/null 2>&1; then
+          echo "✅ Dangerzone found (using dangerzone instead of dangerzone-cli)"
+          dangerzone --version
+          export DEFUSE_USE_REAL_DANGERZONE=1
+        else
+          echo "⚠️ Dangerzone installation failed, will use mocked tests"
+        fi
+
+    - name: Install Dangerzone (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        echo "Installing Dangerzone via Homebrew..."
+        brew install --cask dangerzone
+        
+        # Verify installation
+        if command -v dangerzone-cli >/dev/null 2>&1; then
+          echo "Dangerzone installed successfully"
+          dangerzone-cli --version
+          export DEFUSE_USE_REAL_DANGERZONE=1
+        elif [ -f "/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli" ]; then
+          echo "Dangerzone installed successfully (app bundle)"
+          /Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli --version
+          export DEFUSE_USE_REAL_DANGERZONE=1
+        else
+          echo "⚠️ Dangerzone installation failed, will use mocked tests"
+        fi
+
+    - name: Install Dangerzone (Windows)
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        # Check if already installed (from cache)
+        $dangerzoneExe = "C:\Program Files\Dangerzone\dangerzone-cli.exe"
+        if (Test-Path $dangerzoneExe) {
+          Write-Output "Dangerzone already installed (from cache)"
+          & $dangerzoneExe --version
+          exit 0
+        }
+
+        Write-Output "Installing Dangerzone..."
+        $msiPath = "Dangerzone-0.9.1.msi"
+        $logPath = "dangerzone-install.log"
+        
+        # Install silently with logging
+        $proc = Start-Process "msiexec.exe" -ArgumentList "/i", "`"$msiPath`"", "/qn", "/l*!", "`"$logPath`"" -NoNewWindow -PassThru -Wait
+        
+        # Check installation result
+        if ($proc.ExitCode -ne 0) {
+          Write-Error "Dangerzone installation failed with exit code: $($proc.ExitCode)"
+          if (Test-Path $logPath) {
+            Write-Output "Installation log:"
+            Get-Content $logPath
+          }
+          exit $proc.ExitCode
+        }
+        
+        # Verify installation
+        if (Test-Path $dangerzoneExe) {
+          Write-Output "Dangerzone installed successfully"
+          & $dangerzoneExe --version
+        } else {
+          Write-Error "Dangerzone installation completed but executable not found"
+          exit 1
+        }
+
     - name: Run platform-specific integration tests
       run: |
         # Linux: Test all sandbox backends and cross-platform functionality
         if [ "$RUNNER_OS" == "Linux" ]; then
+          # Check if Dangerzone is installed for real integration testing
+          if command -v dangerzone-cli >/dev/null 2>&1; then
+            echo "🎉 Running Linux tests with REAL Dangerzone installation"
+            export DEFUSE_USE_REAL_DANGERZONE=1
+          else
+            echo "ℹ️ Running Linux tests with mocked Dangerzone"
+          fi
+          
           uv run pytest tests/integration/ -v --tb=short -m "not slow"
           # Test Linux-specific sandbox tools if available
           uv run pytest tests/test_linux_sandboxes.py -v --tb=short || echo "Linux sandbox tests skipped"
@@ -71,18 +299,34 @@ jobs:
         
         # Windows: Test Docker Desktop integration and Windows-specific functionality
         if [ "$RUNNER_OS" == "Windows" ]; then
-          uv run pytest tests/integration/ -v --tb=short -m "not slow" || echo "Integration tests skipped on Windows"
-          # Test Windows-specific paths and Docker
-          uv run pytest tests/test_windows_integration.py -v --tb=short || echo "Windows-specific tests skipped"
+          # Check if Dangerzone is installed for real integration testing
+          if command -v "C:\Program Files\Dangerzone\dangerzone-cli.exe" >/dev/null 2>&1; then
+            echo "🎉 Running Windows tests with REAL Dangerzone installation"
+            export DEFUSE_USE_REAL_DANGERZONE=1
+          else
+            echo "ℹ️ Running Windows tests with mocked Dangerzone"
+          fi
+          
+          uv run pytest tests/integration/ -v --tb=short -m "not slow"
+          # Test Windows-specific paths and Docker  
+          uv run pytest tests/test_windows_integration.py -v --tb=short
           # Test cross-platform functionality
           uv run pytest tests/test_sanitizer_integration.py tests/test_downloader_cross_platform.py tests/test_cli_cross_platform.py -v --tb=short -m "not linux and not macos"
         fi
         
         # macOS: Test Docker Desktop, app bundles, and macOS-specific functionality
         if [ "$RUNNER_OS" == "macOS" ]; then
-          uv run pytest tests/integration/ -v --tb=short -m "not slow" || echo "Integration tests skipped on macOS"
+          # Check if Dangerzone is installed for real integration testing
+          if command -v dangerzone-cli >/dev/null 2>&1 || [ -f "/Applications/Dangerzone.app/Contents/MacOS/dangerzone-cli" ]; then
+            echo "🎉 Running macOS tests with REAL Dangerzone installation"
+            export DEFUSE_USE_REAL_DANGERZONE=1
+          else
+            echo "ℹ️ Running macOS tests with mocked Dangerzone"
+          fi
+          
+          uv run pytest tests/integration/ -v --tb=short -m "not slow"
           # Test macOS-specific paths
-          uv run pytest tests/test_macos_integration.py -v --tb=short || echo "macOS-specific tests skipped"
+          uv run pytest tests/test_macos_integration.py -v --tb=short
           # Test cross-platform functionality
           uv run pytest tests/test_sanitizer_integration.py tests/test_downloader_cross_platform.py tests/test_cli_cross_platform.py -v --tb=short -m "not linux and not windows"
         fi
