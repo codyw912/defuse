@@ -3,13 +3,14 @@ Platform-specific sandboxing and isolation strategies for secure document downlo
 """
 
 import os
+import platform
 import shutil
 import subprocess
-import platform
 import tempfile
-from pathlib import Path
-from typing import Optional, Dict, Any
+import time
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from .config import Config
 
@@ -67,17 +68,25 @@ class SandboxCapabilities:
         if not docker_path:
             return False
 
-        try:
-            result = subprocess.run(
-                [docker_path, "info"], capture_output=True, timeout=5
-            )
-            return result.returncode == 0
-        except (
-            subprocess.TimeoutExpired,
-            FileNotFoundError,
-            subprocess.CalledProcessError,
-        ):
-            return False
+        for attempt in range(3):
+            try:
+                result = subprocess.run(
+                    [docker_path, "info"], capture_output=True, timeout=5
+                )
+                if result.returncode == 0:
+                    return True
+            except (
+                subprocess.TimeoutExpired,
+                FileNotFoundError,
+                subprocess.CalledProcessError,
+            ):
+                pass
+
+            # Give the daemon a moment to finish starting up (common in CI runners)
+            if attempt < 2:
+                time.sleep(2)
+
+        return False
 
     def _check_podman_available(self) -> bool:
         """Check if Podman is available and running"""
@@ -85,17 +94,24 @@ class SandboxCapabilities:
         if not podman_path:
             return False
 
-        try:
-            result = subprocess.run(
-                [podman_path, "info"], capture_output=True, timeout=5
-            )
-            return result.returncode == 0
-        except (
-            subprocess.TimeoutExpired,
-            FileNotFoundError,
-            subprocess.CalledProcessError,
-        ):
-            return False
+        for attempt in range(3):
+            try:
+                result = subprocess.run(
+                    [podman_path, "info"], capture_output=True, timeout=5
+                )
+                if result.returncode == 0:
+                    return True
+            except (
+                subprocess.TimeoutExpired,
+                FileNotFoundError,
+                subprocess.CalledProcessError,
+            ):
+                pass
+
+            if attempt < 2:
+                time.sleep(2)
+
+        return False
 
     def _get_recommended_backend(self) -> SandboxBackend:
         """Get recommended backend prioritizing compatibility and reliability.
