@@ -5,12 +5,14 @@ These tests verify that sandbox backends build correct command structures
 using mocks, without requiring the actual sandbox tools to be installed.
 """
 
+import platform
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pytest
 
-from defuse.sandbox import SandboxedDownloader, SandboxBackend
 from defuse.config import Config
+from defuse.sandbox import SandboxBackend, SandboxedDownloader
 
 
 class TestFirejailCommandConstruction:
@@ -125,7 +127,9 @@ class TestDockerCommandConstruction:
     @patch("subprocess.run")
     def test_docker_command_has_security_options(self, mock_run, mock_which):
         """Verify Docker command includes all security options"""
-        mock_which.return_value = "/usr/bin/docker"
+        mock_which.side_effect = (
+            lambda cmd: "/usr/bin/docker" if cmd == "docker" else None
+        )
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -138,20 +142,29 @@ class TestDockerCommandConstruction:
 
         if mock_run.called:
             call_args = mock_run.call_args[0][0]
+            is_windows = platform.system() == "Windows"
 
             # Verify Docker command structure
             assert "docker" in call_args[0]
             assert "run" in call_args
             assert "--rm" in call_args
-            assert "--read-only" in call_args
 
-            # Verify security options
-            security_opt_found = False
-            for i, arg in enumerate(call_args):
-                if arg == "--security-opt" and i + 1 < len(call_args):
-                    if "no-new-privileges" in call_args[i + 1]:
-                        security_opt_found = True
-            assert security_opt_found, "Should have --security-opt no-new-privileges"
+            if is_windows:
+                # Windows Docker engine lacks read-only and security-opt support
+                assert "--read-only" not in call_args
+                assert "--security-opt" not in call_args
+            else:
+                assert "--read-only" in call_args
+
+                # Verify security options
+                security_opt_found = False
+                for i, arg in enumerate(call_args):
+                    if arg == "--security-opt" and i + 1 < len(call_args):
+                        if "no-new-privileges" in call_args[i + 1]:
+                            security_opt_found = True
+                assert security_opt_found, (
+                    "Should have --security-opt no-new-privileges"
+                )
 
             # Verify resource limits
             memory_found = any("--memory" in str(arg) for arg in call_args)
@@ -163,7 +176,9 @@ class TestDockerCommandConstruction:
     @patch("subprocess.run")
     def test_docker_tmpfs_mount_options(self, mock_run, mock_which):
         """Verify Docker tmpfs has noexec,nosuid flags"""
-        mock_which.return_value = "/usr/bin/docker"
+        mock_which.side_effect = (
+            lambda cmd: "/usr/bin/docker" if cmd == "docker" else None
+        )
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -176,6 +191,10 @@ class TestDockerCommandConstruction:
 
         if mock_run.called:
             call_args = mock_run.call_args[0][0]
+            if platform.system() == "Windows":
+                # tmpfs not supported on Windows Docker engine
+                assert "--tmpfs" not in call_args
+                return
 
             # Find tmpfs argument
             tmpfs_arg = None
@@ -192,7 +211,9 @@ class TestDockerCommandConstruction:
     @patch("subprocess.run")
     def test_docker_volume_mount_for_output(self, mock_run, mock_which):
         """Verify Docker mounts output directory correctly"""
-        mock_which.return_value = "/usr/bin/docker"
+        mock_which.side_effect = (
+            lambda cmd: "/usr/bin/docker" if cmd == "docker" else None
+        )
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -259,7 +280,9 @@ class TestSandboxCommandURLHandling:
     @patch("subprocess.run")
     def test_url_is_embedded_in_command(self, mock_run, mock_which):
         """Verify test URL appears in Docker command"""
-        mock_which.return_value = "/usr/bin/docker"
+        mock_which.side_effect = (
+            lambda cmd: "/usr/bin/docker" if cmd == "docker" else None
+        )
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
@@ -291,7 +314,9 @@ class TestSandboxCommandErrorHandling:
             MagicMock(returncode=0),  # docker info check
             MagicMock(returncode=1, stderr="error"),  # actual download command
         ]
-        mock_which.return_value = "/usr/bin/docker"
+        mock_which.side_effect = (
+            lambda cmd: "/usr/bin/docker" if cmd == "docker" else None
+        )
 
         config = Config()
         downloader = SandboxedDownloader(config)
@@ -313,7 +338,9 @@ class TestSandboxCommandErrorHandling:
             MagicMock(returncode=0),  # docker info check
             subprocess.TimeoutExpired("docker", 150),  # download timeout
         ]
-        mock_which.return_value = "/usr/bin/docker"
+        mock_which.side_effect = (
+            lambda cmd: "/usr/bin/docker" if cmd == "docker" else None
+        )
 
         config = Config()
         downloader = SandboxedDownloader(config)
@@ -331,10 +358,11 @@ class TestSandboxCommandErrorHandling:
         # Multiple calls: docker check, podman check, then download error
         mock_run.side_effect = [
             MagicMock(returncode=0),  # docker info check
-            MagicMock(returncode=1),  # podman info check (not available)
             Exception("Unexpected error"),  # download error
         ]
-        mock_which.return_value = "/usr/bin/docker"
+        mock_which.side_effect = (
+            lambda cmd: "/usr/bin/docker" if cmd == "docker" else None
+        )
 
         config = Config()
         downloader = SandboxedDownloader(config)
@@ -353,7 +381,9 @@ class TestConfigLimitsInCommands:
     @patch("subprocess.run")
     def test_custom_memory_limit_in_docker_command(self, mock_run, mock_which):
         """Custom memory limit should appear in Docker command"""
-        mock_which.return_value = "/usr/bin/docker"
+        mock_which.side_effect = (
+            lambda cmd: "/usr/bin/docker" if cmd == "docker" else None
+        )
         mock_run.return_value = MagicMock(returncode=0)
 
         config = Config()
