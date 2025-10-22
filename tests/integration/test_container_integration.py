@@ -6,15 +6,19 @@ Docker/Podman containers, testing real container operations, security
 constraints, and resource limits.
 """
 
+import platform
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import docker
 import pytest
 import responses
 
 from defuse.config import Config, SandboxConfig
-from defuse.sandbox import SandboxedDownloader, SandboxBackend
+from defuse.sandbox import SandboxBackend, SandboxedDownloader
+
+
+IS_WINDOWS = platform.system() == "Windows"
 
 
 @pytest.fixture
@@ -323,8 +327,11 @@ class TestContainerIsolation:
 
             docker_cmd = mock_run.call_args[0][0]
 
-            # Verify read-only filesystem
-            assert "--read-only" in docker_cmd
+            # Verify read-only filesystem (not supported on Windows Docker engine)
+            if IS_WINDOWS:
+                assert "--read-only" not in docker_cmd
+            else:
+                assert "--read-only" in docker_cmd
 
             # Verify volume mounting for output only
             assert "-v" in docker_cmd or "--volume" in docker_cmd
@@ -343,7 +350,10 @@ class TestContainerIsolation:
 
             docker_cmd = mock_run.call_args[0][0]
 
-            # Verify no-new-privileges security option
-            assert "--security-opt" in docker_cmd
-            security_idx = docker_cmd.index("--security-opt")
-            assert "no-new-privileges:true" in docker_cmd[security_idx + 1]
+            # Verify no-new-privileges security option (Windows engine lacks support)
+            if IS_WINDOWS:
+                assert "--security-opt" not in docker_cmd
+            else:
+                assert "--security-opt" in docker_cmd
+                security_idx = docker_cmd.index("--security-opt")
+                assert "no-new-privileges:true" in docker_cmd[security_idx + 1]

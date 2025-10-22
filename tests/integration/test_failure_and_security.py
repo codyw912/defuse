@@ -6,6 +6,7 @@ gracefully and maintains security boundaries under stress conditions
 and malicious inputs.
 """
 
+import platform
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -17,6 +18,9 @@ import responses
 from defuse.sandbox import SandboxedDownloader
 from defuse.sanitizer import DocumentSanitizer
 from defuse.formats import FileTypeDetector
+
+
+IS_WINDOWS = platform.system() == "Windows"
 
 
 @pytest.mark.integration
@@ -291,10 +295,13 @@ class TestSecurityConstraints:
             docker_cmd = mock_run.call_args[0][0] if mock_run.call_args else []
 
             if docker_cmd:
-                assert "--security-opt" in docker_cmd
-                security_idx = docker_cmd.index("--security-opt") + 1
-                assert security_idx < len(docker_cmd)
-                assert "no-new-privileges:true" in docker_cmd[security_idx]
+                if IS_WINDOWS:
+                    assert "--security-opt" not in docker_cmd
+                else:
+                    assert "--security-opt" in docker_cmd
+                    security_idx = docker_cmd.index("--security-opt") + 1
+                    assert security_idx < len(docker_cmd)
+                    assert "no-new-privileges:true" in docker_cmd[security_idx]
 
     def test_network_isolation_enforcement(
         self, integration_config, temp_dir, mock_sandbox_capabilities
@@ -340,7 +347,10 @@ class TestSecurityConstraints:
             docker_cmd = mock_run.call_args[0][0] if mock_run.call_args else []
 
             if docker_cmd:
-                assert "--read-only" in docker_cmd
+                if IS_WINDOWS:
+                    assert "--read-only" not in docker_cmd
+                else:
+                    assert "--read-only" in docker_cmd
                 # Should have volume mount for output only
                 assert "-v" in docker_cmd or "--volume" in docker_cmd
 
